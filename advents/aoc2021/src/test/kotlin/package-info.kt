@@ -1,0 +1,1 @@
+package com.gilpereda.adventsofcode.adventsofcode2021
