@@ -1,10 +1,12 @@
 package com.gilpereda.adventsofcode.adventsofcode2021.day08
 
 import com.gilpereda.adventsofcode.adventsofcode2021.BaseTest
-import com.gilpereda.adventsofcode.adventsofcode2021.countDigits
-import com.gilpereda.adventsofcode.adventsofcode2021.decodeDigits
 
 class DigitsTest2 : BaseTest() {
+//    override val example: String = """
+//        acedgfb cdfbe gcdfa fbcad dab cefabd cdfgeb eafb cagedb ab | cdfeb fcadb cdfeb cdbaf
+//    """.trimIndent()
+
     override val example: String = """
         be cfbegad cbdgef fgaecd cgeb fdcge agebfd fecdb fabcd edb | fdgacbe cefdb cefbgd gcbe
         edbfga begcd cbg gc gcadebf fbgde acbgfd abcde gfcbed gfec | fcgedb cgb dgebacf gc
@@ -18,6 +20,7 @@ class DigitsTest2 : BaseTest() {
         gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce
     """.trimIndent()
 
+//    override val result: String = "5353"
     override val result: String = "61229"
 
     override val input: String = "/day08/input.txt"

@@ -11,6 +11,9 @@ abstract class BaseTest {
 
     abstract val run: (Sequence<String>) -> String
 
+    protected val inputSequence: Sequence<String>
+        get() = BaseTest::class.java.getResourceAsStream(input)!!.bufferedReader().lineSequence()
+
     protected fun check(example: Pair<String, String>) {
         val (input, expected) = example
         assertThat(run(input.splitToSequence("\n"))).isEqualTo(expected)
@@ -22,8 +25,8 @@ abstract class BaseTest {
     }
 
     @Test
-    fun `shoul return the result`() {
-        val result = run(BaseTest::class.java.getResourceAsStream(input)!!.bufferedReader().lineSequence())
+    fun `should return the result`() {
+        val result = run(inputSequence)
 
         assertThat(result).isNotNull
         println("Result: $result")

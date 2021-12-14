@@ -1,7 +1,6 @@
 package com.gilpereda.adventsofcode.adventsofcode2021.day08
 
 import com.gilpereda.adventsofcode.adventsofcode2021.BaseTest
-import com.gilpereda.adventsofcode.adventsofcode2021.countDigits
 
 class DigitsTest1 : BaseTest() {
     override val example: String = """

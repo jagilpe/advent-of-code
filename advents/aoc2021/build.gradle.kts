@@ -12,7 +12,10 @@ repositories {
 }
 
 dependencies {
+    implementation(platform("io.arrow-kt:arrow-stack:1.0.1"))
+
     implementation(kotlin("stdlib"))
+    implementation("io.arrow-kt:arrow-core")
 
 
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
