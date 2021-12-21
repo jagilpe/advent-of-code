@@ -1,48 +1,73 @@
 package com.gilpereda.adventsofcode.adventsofcode2021.day21
 
 
+const val PLAYER_1 = 1
+const val PLAYER_2 = 2
+
 fun part1(player1Start: Int, player2Start: Int): Int {
+    val game = generateSequence(Game.forStart(player1Start, player2Start), Game::next).first(Game::finished)
+    return game.looser!!.score * (game.rolls)
+}
 
-    val game = Game(Player(1, player1Start, 0), Player(2, player2Start, 0))
-    var dice = 1
-    var rolls = 0
-    while (!game.finished) {
-        val rollsPlayer1 = rollDice(dice)
-        dice = rollsPlayer1.first
-        game.player1 = game.player1.move(rollsPlayer1.second)
-        rolls += 3
-        if (game.finished) break
+data class Game(
+    val player1: Player,
+    val player2: Player,
+    val winner: Int? = null,
+    private val dice: Int = 0,
+    val rolls: Int = 0,
+    private val limit: Int = 1000,
+) {
+    fun next(): Game = next(roll())
 
-        val rollsPlayer2 = rollDice(dice)
-        dice = rollsPlayer2.first
-        game.player2 = game.player2.move(rollsPlayer2.second)
-        rolls += 3
-        if (game.finished) break
+    fun next(dice: Int): Game {
+        if (finished) throw IllegalStateException("Game already finished")
+
+        val next = if (inTurn == PLAYER_1) {
+            val newPlayer1 = player1.move(dice, lastRollInTurn)
+            val winner = if ((finished(newPlayer1)) && lastRollInTurn) player1.id else null
+            copy(player1 = newPlayer1, winner = winner, dice = dice, rolls = rolls + 1)
+        } else {
+            val newPlayer2 = player2.move(dice, lastRollInTurn)
+            val winner = if ((finished(newPlayer2)) && lastRollInTurn) player2.id else null
+            copy(player2 = newPlayer2, winner = winner, dice = dice, rolls = rolls + 1)
+        }
+        return next
     }
 
-    return game.looser.score * (rolls)
-}
+    val finished: Boolean = winner != null
 
-fun rollDice(dice: Int): Pair<Int, Int> {
-    val rolls = generateSequence(dice) { if (it >= 100) 1 else it + 1 }.take(3).toList()
-    val newDice = if (rolls.last() >= 100) 1 else rolls.last() + 1
-    return Pair(newDice, rolls.sum())
-}
+    private fun finished(player: Player): Boolean = player.score >= limit
 
-data class Game(var player1: Player, var player2: Player) {
-    val finished: Boolean
-        get() = player1.score >= 1000 || player2.score >= 1000
+    val looser: Player? =
+        when (winner) {
+            1 -> player2
+            2 -> player1
+            else -> null
+        }
 
-    val looser: Player
-        get() = if (player1.score >= 1000) player2 else player1
+    private val inTurn: Int
+        get() = when (rolls % 6) {
+            0, 1, 2 -> PLAYER_1
+            else -> PLAYER_2
+        }
+
+    private val lastRollInTurn: Boolean = rolls % 3 == 2
+
+    private fun roll(): Int = if (dice >= 100) 1 else dice + 1
+
+
+    companion object {
+        fun forStart(player1Start: Int, player2Start: Int): Game =
+            Game(Player(1, player1Start), Player(2, player2Start))
+    }
 }
 
 data class Player(val id: Int, val position: Int, val score: Int = 0) {
-    fun move(moves: Int): Player {
+    fun move(moves: Int, lastMoveInTurn: Boolean): Player {
         val endPosition = ((position + moves - 1) % 10) + 1
         return copy(
             position = endPosition,
-            score = score + endPosition
+            score = score + if (lastMoveInTurn) endPosition else 0
         )
     }
 }
