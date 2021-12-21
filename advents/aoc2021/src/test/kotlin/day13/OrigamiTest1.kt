@@ -1,6 +1,7 @@
 package com.gilpereda.adventsofcode.adventsofcode2021.day13
 
 import com.gilpereda.adventsofcode.adventsofcode2021.BaseTest
+import com.gilpereda.adventsofcode.adventsofcode2021.Executable
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -29,11 +30,15 @@ class OrigamiTest1 : BaseTest() {
         fold along x=5
     """.trimIndent()
 
-    override val result: String = "17"
+    override val result1: String = "17"
+    override val result2: String
+        get() = TODO("Not yet implemented")
 
     override val input: String = "/day13/input.txt"
 
-    override val run: (Sequence<String>) -> String = ::origamiOneFold
+    override val run1: (Sequence<String>) -> String = ::origamiOneFold
+    override val run2: Executable
+        get() = TODO("Not yet implemented")
 
     private val initialPoints = setOf(
         Point(6, 10),

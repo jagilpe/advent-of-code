@@ -18,9 +18,12 @@ class DiagnosticsTest1 : BaseTest() {
         01010
     """.trimIndent()
 
-    override val result: String = "198"
+    override val result1: String = "198"
+    override val result2: String = "230"
 
     override val input: String = "/day03/input.txt"
 
-    override val run: (Sequence<String>) -> String = ::runDiagnostics
+    override val run1: (Sequence<String>) -> String = ::runDiagnostics
+    override val run2: (Sequence<String>) -> String = ::runOxygenDiagnostics
+
 }

@@ -16,9 +16,29 @@ class SubmarineAimCommandsTest : BaseTest() {
         down 8
         forward 2
     """.trimIndent()
-    override val result: String = "900"
+    override val result1: String = "150"
+    override val result2: String = "900"
 
     override val input: String = "/day02/input.txt"
 
-    override val run: (Sequence<String>) -> String = ::aimAndMoveSubmarine
+    override val run1: (Sequence<String>) -> String = ::moveSubmarine
+    override val run2: (Sequence<String>) -> String = ::aimAndMoveSubmarine
+
+
+    @ParameterizedTest
+    @MethodSource("testData")
+    fun `forward should increase horizontal position`(commands: String, result: String) {
+        check(commands to result, run1)
+    }
+
+    companion object {
+        @JvmStatic
+        fun testData(): Stream<Arguments> =
+            Stream.of(
+                Arguments.of("forward 5\ndown 1", "5"),
+                Arguments.of("forward 10\ndown 1", "10"),
+                Arguments.of("forward 10\ndown 10\ndown 10", "200"),
+                Arguments.of("forward 10\ndown 10\nup 5", "50"),
+            )
+    }
 }

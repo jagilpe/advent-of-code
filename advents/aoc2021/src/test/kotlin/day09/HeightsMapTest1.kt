@@ -11,9 +11,11 @@ class HeightsMapTest1 : BaseTest() {
         9899965678
     """.trimIndent()
 
-    override val result: String = "1134"
+    override val result1: String = "1134"
+    override val result2: String = "15"
 
     override val input: String = "/day09/input.txt"
 
-    override val run: (Sequence<String>) -> String = ::findBasins
+    override val run1: (Sequence<String>) -> String = ::findBasins
+    override val run2: (Sequence<String>) -> String = ::calculateRisk
 }

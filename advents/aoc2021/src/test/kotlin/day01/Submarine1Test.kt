@@ -17,15 +17,18 @@ class Submarine1Test : BaseTest() {
     260
     263""".trimIndent()
 
-    override val result = "7"
+    override val result1 = "7"
+    override val result2: String = "5"
 
     override val input: String = "/day01/input.txt"
 
-    override val run: (Sequence<String>) -> String = ::countIncreases
+    override val run1: (Sequence<String>) -> String = ::countIncreases
+
+    override val run2: (Sequence<String>) -> String = ::countWindowed
 
     @Test
     fun `should be zero for one measurement only`() {
-        check("123" to "0")
+        check("123" to "0", run1)
     }
 
     @Test
@@ -35,12 +38,12 @@ class Submarine1Test : BaseTest() {
             2
             3
         """.trimIndent()
-        check(example to "2")
+        check(example to "2", run1)
     }
 
     @Test
     fun `should return zero if there is no measure`() {
-        check("" to "0")
+        check("" to "0", run1)
     }
 
     @Test
@@ -51,6 +54,6 @@ class Submarine1Test : BaseTest() {
             1
             3
         """.trimIndent()
-        check(example to "2")
+        check(example to "2", run1)
     }
 }

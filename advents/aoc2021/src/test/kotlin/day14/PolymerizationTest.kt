@@ -4,7 +4,7 @@ import com.gilpereda.adventsofcode.adventsofcode2021.BaseTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
-class PolymerizationTest2 : BaseTest() {
+class PolymerizationTest : BaseTest() {
     override val example: String = """
         NNCB
 
@@ -47,11 +47,13 @@ class PolymerizationTest2 : BaseTest() {
         "CN" to 'C',
     )
 
-    override val result: String = "2188189693529"
+    override val result1: String = "1588"
+    override val result2: String = "2188189693529"
 
     override val input: String = "/day14/input.txt"
 
-    override val run: (Sequence<String>) -> String = ::polymerization2
+    override val run1: (Sequence<String>) -> String = ::polymerization1
+    override val run2: (Sequence<String>) -> String = ::polymerization2
 
     @Test
     fun `should parse the input`() {

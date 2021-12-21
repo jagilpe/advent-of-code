@@ -18,11 +18,13 @@ class HydrothermalTest1 : BaseTest() {
         5,5 -> 8,2
     """.trimIndent()
 
-    override val result: String = "5"
+    override val result1: String = "5"
 
+    override val result2: String = "12"
     override val input: String = "/day05/input.txt"
 
-    override val run: (Sequence<String>) -> String = ::hydrothermal
+    override val run1: (Sequence<String>) -> String = ::hydrothermal
+    override val run2: (Sequence<String>) -> String = ::hydrothermal2
 
 
     @Test

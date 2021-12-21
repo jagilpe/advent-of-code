@@ -26,11 +26,13 @@ class PathFinderTest1 : BaseTest() {
         start-RW
     """.trimIndent()
 
-    override val result: String = "226"
+    override val result1: String = "226"
+    override val result2: String = "3509"
 
     override val input: String = "/day12/input.txt"
 
-    override val run: (Sequence<String>) -> String = ::numberOfPaths
+    override val run1: (Sequence<String>) -> String = ::numberOfPaths
+    override val run2: (Sequence<String>) -> String = ::numberOfPath2
 
     @Test
     fun `should parse a connection`() {

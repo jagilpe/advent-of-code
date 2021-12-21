@@ -17,10 +17,12 @@ class OctoputTest1 : BaseTest() {
         5283751526
     """.trimIndent()
 
-    override val result: String = "1656"
+    override val result1: String = "1656"
+    override val result2: String = "195"
 
     override val input: String = "/day11/input.txt"
 
-    override val run: (Sequence<String>) -> String = ::octopus
+    override val run1: (Sequence<String>) -> String = ::octopus
+    override val run2: (Sequence<String>) -> String = ::synchonized
 
 }

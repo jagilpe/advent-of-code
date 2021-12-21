@@ -16,9 +16,11 @@ class DigitsTest1 : BaseTest() {
         gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce
     """.trimIndent()
 
-    override val result: String = "26"
+    override val result1: String = "26"
+    override val result2: String = "61229"
 
     override val input: String = "/day08/input.txt"
 
-    override val run: (Sequence<String>) -> String = ::countDigits
+    override val run1: (Sequence<String>) -> String = ::countDigits
+    override val run2: (Sequence<String>) -> String = ::decodeDigits
 }
