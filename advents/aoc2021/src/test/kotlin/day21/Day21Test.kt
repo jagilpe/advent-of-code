@@ -2,15 +2,21 @@ package com.gilpereda.adventsofcode.adventsofcode2021.day21
 
 import com.gilpereda.adventsofcode.adventsofcode2021.BaseTest
 import com.gilpereda.adventsofcode.adventsofcode2021.Executable
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
-class Day21Test : BaseTest() {
-    override val example: String
-        get() = TODO("Not yet implemented")
-    override val result1: String
-        get() = TODO("Not yet implemented")
-    override val result2: String
-        get() = TODO("Not yet implemented")
-    override val input: String = "/day21/input.txt"
-    override val run1: Executable = part1
-    override val run2: Executable = part2
+class Day21Test {
+
+    @Test
+    fun `should work with the example - part 1`() {
+        assertThat(part1(4, 8)).isEqualTo(739785)
+    }
+
+    @Test
+    fun `should calculate the result - part 1`() {
+        val result = part1(4, 2)
+        assertThat(result).isNotNull
+
+        println(result)
+    }
 }
