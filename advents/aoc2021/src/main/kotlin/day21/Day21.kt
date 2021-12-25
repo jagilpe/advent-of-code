@@ -1,4 +1,8 @@
+@file:OptIn(ExperimentalStdlibApi::class)
+
 package com.gilpereda.adventsofcode.adventsofcode2021.day21
+
+import arrow.core.flatten
 
 
 const val PLAYER_1 = 1
@@ -8,6 +12,31 @@ fun part1(player1Start: Int, player2Start: Int): Int {
     val game = generateSequence(Game.forStart(player1Start, player2Start), Game::next).first(Game::finished)
     return game.looser!!.score * (game.rolls)
 }
+
+
+val winners: DeepRecursiveFunction<Game, Triple<Long, Long, Long>> = DeepRecursiveFunction { game ->
+    if (game.finished) {
+        if (game.winner!! == PLAYER_1) {
+            Triple(1, 0, 1)
+        } else {
+            Triple(0, 1, 1)
+        }
+    } else {
+        val first = callRecursive(game.next(1))
+        val second = callRecursive(game.next(2))
+        val third = callRecursive(game.next(3))
+        Triple(first = first.first + second.first + third.first,
+            second = first.second + second.second + third.second,
+            third = first.third + second.third + third.third)
+    }
+}
+
+fun part2(player1Start: Int, player2Start: Int): Pair<Long, Long> {
+    val result = winners(Game.forStart(player1Start, player2Start, 21))
+    return Pair(result.first, result.second)
+}
+
+private fun cosmicRoll(game: Game): Sequence<Game> = (1..2).mapNotNull { dice -> if (!game.finished) game.next(dice) else null }.asSequence()
 
 data class Game(
     val player1: Player,
@@ -24,11 +53,11 @@ data class Game(
 
         val next = if (inTurn == PLAYER_1) {
             val newPlayer1 = player1.move(dice, lastRollInTurn)
-            val winner = if ((finished(newPlayer1)) && lastRollInTurn) player1.id else null
+            val winner = if (winner != null || ((finished(newPlayer1)) && lastRollInTurn)) player1.id else null
             copy(player1 = newPlayer1, winner = winner, dice = dice, rolls = rolls + 1)
         } else {
             val newPlayer2 = player2.move(dice, lastRollInTurn)
-            val winner = if ((finished(newPlayer2)) && lastRollInTurn) player2.id else null
+            val winner = if (winner != null || ((finished(newPlayer2)) && lastRollInTurn)) player2.id else null
             copy(player2 = newPlayer2, winner = winner, dice = dice, rolls = rolls + 1)
         }
         return next
@@ -57,8 +86,8 @@ data class Game(
 
 
     companion object {
-        fun forStart(player1Start: Int, player2Start: Int): Game =
-            Game(Player(1, player1Start), Player(2, player2Start))
+        fun forStart(player1Start: Int, player2Start: Int, limit: Int = 1000): Game =
+            Game(player1 = Player(1, player1Start), player2 = Player(2, player2Start), limit = limit)
     }
 }
 
@@ -70,8 +99,4 @@ data class Player(val id: Int, val position: Int, val score: Int = 0) {
             score = score + if (lastMoveInTurn) endPosition else 0
         )
     }
-}
-
-fun part2(player1: Int, player2: Int): Int {
-    TODO()
 }
