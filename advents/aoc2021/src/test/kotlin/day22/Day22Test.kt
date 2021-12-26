@@ -1,6 +1,5 @@
 package com.gilpereda.adventsofcode.adventsofcode2021.day22
 
-import arrow.core.flatten
 import com.gilpereda.adventsofcode.adventsofcode2021.BaseTest
 import com.gilpereda.adventsofcode.adventsofcode2021.Executable
 import org.assertj.core.api.Assertions.*
@@ -48,74 +47,740 @@ class Day22Test : BaseTest() {
 
     @Test
     fun `should parse an on line`() {
-        val expected = Cuboid(xRange = -54112..-39298, yRange = -85059..-49293, zRange = -27449..7877, on = true)
+        val expected =
+            ReactorCuboid(Cuboid(xRange = -54112..-39298, yRange = -85059..-49293, zRange = -27449..7877), on = true)
         assertThat(parseLine("on x=-54112..-39298,y=-85059..-49293,z=-27449..7877")).isEqualTo(expected)
     }
 
     @Test
     fun `should parse an off line`() {
-        val expected = Cuboid(xRange = -5412..-298, yRange = -85059..-49293, zRange = -27449..7877, on = false)
+        val expected =
+            ReactorCuboid(Cuboid(xRange = -5412..-298, yRange = -85059..-49293, zRange = -27449..7877), on = false)
         assertThat(parseLine("off x=-5412..-298,y=-85059..-49293,z=-27449..7877")).isEqualTo(expected)
     }
 
-    @Test
-    fun `should access all the points in the reactor`() {
-        val reactor = Reactor(-50..50, -60..60, -70..70)
-
-        assertThatCode {
-            (-50..50).asSequence().flatMap { x ->
-                (-60..60).asSequence().flatMap { y ->
-                    (-70..70).asSequence().map { z ->
-                        reactor[Point(x, y, z)]
-                    }
-                }
-            }.all { it }
-        }.doesNotThrowAnyException()
-    }
-
-    @Test
-    fun `should set all the points in the reactor`() {
-        val reactor = Reactor(-4..5, -8..12, -10..15)
-
-        (-4..5).map { x ->
-            (-8..12).map { y ->
-                (-10..15).forEach { z ->
-                    reactor.set(Point(x, y, z), true)
-                }
-            }
-        }
-
-        assertThat((-4..5).asSequence().flatMap { x ->
-            (-8..12).asSequence().flatMap { y ->
-                (-10..15).asSequence().map { z ->
-                    reactor[Point(x, y, z)]
-                }
-            }
-        }.all { it }).isTrue
+    @ParameterizedTest
+    @MethodSource("unions")
+    fun `should find the union of two cuboids`(one: Cuboid, other: Cuboid, result: Set<Cuboid>) {
+        assertThat(one + other).isEqualTo(result)
     }
 
     @ParameterizedTest
-    @MethodSource("finalState")
-    fun `should get the final state of a point`(
-        point: Point, cuboids: List<Cuboid>, finalState: Boolean
-    ) {
-        assertThat(point.finalState(cuboids)).isEqualTo(finalState)
+    @MethodSource("intersections")
+    fun `should find the intersection of two cuboids`(one: Cuboid, other: Cuboid, intersection: Cuboid?) {
+        assertThat(one intersectionWith other).isEqualTo(intersection)
+        assertThat(other intersectionWith one).isEqualTo(intersection)
+        assertThat(one intersectionWith one).isEqualTo(one)
+    }
 
+    @ParameterizedTest
+    @MethodSource("subtractions")
+    fun `should find the subtract of two cuboids`(one: Cuboid, other: Cuboid, result: () -> Set<Cuboid>) {
+        assertThat(one - other).isEqualTo(result())
+    }
+
+    @ParameterizedTest
+    @MethodSource("positions")
+    fun `should calculate the position of a range`(one: IntRange, other: IntRange, position: Position) {
+        assertThat(one positionOf other).isEqualTo(position)
+    }
+
+    @ParameterizedTest
+    @MethodSource("intersectionPoints")
+    fun `should calculate the intersection point`(one: Cuboid, other: Cuboid, position: IntersectionPoint) {
+        assertThat(one intersectsIn other).isEqualTo(position)
     }
 
     companion object {
         @JvmStatic
-        fun finalState(): Stream<Arguments> = Stream.of(
-            of(Point(10, 10, 10), listOf(cuboidOn(5, 5, 5)), false),
-            of(Point(4, 4, 4), listOf(cuboidOn(5, 5, 5)), true),
-            of(Point(4, 4, 4), listOf(cuboidOff(5, 5, 5), cuboidOn(5, 5, 5)), false),
-            of(Point(8, 4, 4), listOf(cuboidOff(5, 5, 5), cuboidOn(10, 5, 5)), true),
+        fun positions(): Stream<Arguments> = Stream.of(
+            of(-10..10, -20..-15, Position.OUTSIDE),
+            of(-10..10, -15..0, Position.INTERSECT_LEFT),
+            of(-10..10, -5..5, Position.INSIDE),
+            of(-10..10, 0..15, Position.INTERSECT_RIGHT),
+            of(-10..10, 15..20, Position.OUTSIDE),
+            of(-10..10, -15..15, Position.WRAPS),
         )
+
+        @JvmStatic
+        fun unions(): Stream<Arguments> = Stream.of(
+            of(
+                Cuboid(0..5, 0..5, 0..5),
+                Cuboid(6..10, 6..10, 6..10),
+                setOf(
+                    Cuboid(0..5, 0..5, 0..5),
+                    Cuboid(6..10, 6..10, 6..10)
+                )
+            ),
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-5..5, -5..5, -5..5),
+                setOf(
+                    Cuboid(-10..10, -10..10, -10..10),
+                )
+            ),
+            of(
+                Cuboid(-5..5, -5..5, -5..5),
+                Cuboid(-10..10, -10..10, -10..10),
+                setOf(
+                    Cuboid(-10..10, -10..10, -10..10),
+                )
+            ),
+        )
+
+        @JvmStatic
+        fun intersections(): Stream<Arguments> = Stream.of(
+            // cuboids that do not intersect
+            of(
+                Cuboid(0..5, 0..5, 0..5),
+                Cuboid(6..10, 6..10, 6..10),
+                null,
+            ),
+            // one cuboid inside the other
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-5..5, -5..5, -5..5),
+                Cuboid(-5..5, -5..5, -5..5),
+            ),
+            /*** Cuboids around the vertices ***/
+            // Around (-10, -10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, -15..-5, -15..-5),
+                Cuboid(-10..-5, -10..-5, -10..-5),
+            ),
+            // Around (10, -10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, -15..-5, -15..-5),
+                Cuboid(5..10, -10..-5, -10..-5),
+            ),
+            // Around (-10, 10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, 5..15, -15..-5),
+                Cuboid(-10..-5, 5..10, -10..-5),
+            ),
+            // Around (-10, -10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, -15..-5, 5..15),
+                Cuboid(-10..-5, -10..-5, 5..10),
+            ),
+            // Around (10, 10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, 5..15, -15..-5),
+                Cuboid(5..10, 5..10, -10..-5),
+            ),
+            // Around (10, -10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, -15..-5, 5..15),
+                Cuboid(5..10, -10..-5, 5..10),
+            ),
+            // Around (10, 10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, 5..15, 5..15),
+                Cuboid(5..10, 5..10, 5..10),
+            ),
+            // Around (-10, 10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, 5..15, 5..15),
+                Cuboid(-10..-5, 5..10, 5..10),
+            ),
+            // Cuboids around the cube faces
+            // Around face in x = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..15, -15..15),
+                Cuboid(0..10, -10..10, -10..10),
+            ),
+            // Around face in x = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..15, -15..15),
+                Cuboid(-10..0, -10..10, -10..10),
+            ),
+            // Around face in y = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, 0..15, -15..15),
+                Cuboid(-10..10, 0..10, -10..10),
+            ),
+            // Around face in y = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..0, -15..15),
+                Cuboid(-10..10, -10..0, -10..10),
+            ),
+            // Around face in z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..15, 0..15),
+                Cuboid(-10..10, -10..10, 0..10),
+            ),
+            // Around face in z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..15, -15..0),
+                Cuboid(-10..10, -10..10, -10..0),
+            ),
+            // Cuboids around the edges
+            // edge in x = 10, y = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, 0..15, -15..15),
+                Cuboid(0..10, 0..10, -10..10),
+            ),
+            // edge in x = 10, y = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..0, -15..15),
+                Cuboid(0..10, -10..0, -10..10),
+            ),
+            // edge in x = -10, y = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, 0..15, -15..15),
+                Cuboid(-10..0, 0..10, -10..10),
+            ),
+            // edge in x = -10, y = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..0, -15..15),
+                Cuboid(-10..0, -10..0, -10..10),
+            ),
+            // edge in x = 10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..15, 0..15),
+                Cuboid(0..10, -10..10, 0..10),
+            ),
+            // edge in x = 10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..15, -15..0),
+                Cuboid(0..10, -10..10, -10..0),
+            ),
+            // edge in x = -10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..15, 0..15),
+                Cuboid(-10..0, -10..10, 0..10),
+            ),
+            // edge in x = -10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..15, -15..0),
+                Cuboid(-10..0, -10..10, -10..0),
+            ),
+            // edge in y = 10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, 0..15, 0..15),
+                Cuboid(-10..10, 0..10, 0..10),
+            ),
+            // edge in y = 10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, 0..15, -15..0),
+                Cuboid(-10..10, 0..10, -10..0),
+            ),
+            // edge in y = -10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..0, 0..15),
+                Cuboid(-10..10, -10..0, 0..10),
+            ),
+            // edge in y = -10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..0, -15..0),
+                Cuboid(-10..10, -10..0, -10..0),
+            ),
+        )
+
+        @JvmStatic
+        fun intersectionPoints(): Stream<Arguments> = Stream.of(
+            // cuboids that do not intersect
+            of(
+                Cuboid(0..5, 0..5, 0..5),
+                Cuboid(6..10, 6..10, 6..10),
+                IntersectionPoint.NONE,
+            ),
+            // one cuboid inside the other
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-5..5, -5..5, -5..5),
+                IntersectionPoint.INSIDE,
+            ),
+            // one cuboid wraps the other
+            of(
+                Cuboid(-5..5, -5..5, -5..5),
+                Cuboid(-10..10, -10..10, -10..10),
+                IntersectionPoint.WRAPS,
+            ),
+            /*** Cuboids around the vertices ***/
+            // Around (-10, -10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, -15..-5, -15..-5),
+                IntersectionPoint.VERTEX_X_NEG_Y_NEG_Z_NEG,
+            ),
+            // Around (10, -10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, -15..-5, -15..-5),
+                IntersectionPoint.VERTEX_X_POS_Y_NEG_Z_NEG,
+            ),
+            // Around (-10, 10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, 5..15, -15..-5),
+                IntersectionPoint.VERTEX_X_NEG_Y_POS_Z_NEG,
+            ),
+            // Around (-10, -10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, -15..-5, 5..15),
+                IntersectionPoint.VERTEX_X_NEG_Y_NEG_Z_POS
+            ),
+            // Around (10, 10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, 5..15, -15..-5),
+                IntersectionPoint.VERTEX_X_POS_Y_POS_Z_NEG
+            ),
+            // Around (10, -10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, -15..-5, 5..15),
+                IntersectionPoint.VERTEX_X_POS_Y_NEG_Z_POS
+            ),
+            // Around (10, 10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, 5..15, 5..15),
+                IntersectionPoint.VERTEX_X_POS_Y_POS_Z_POS
+            ),
+            // Around (-10, 10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, 5..15, 5..15),
+                IntersectionPoint.VERTEX_X_NEG_Y_POS_Z_POS
+            ),
+            // Cuboids around the cube faces
+            // Around face in x = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..15, -15..15),
+                IntersectionPoint.FACE_X_POS
+            ),
+            // Around face in x = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..15, -15..15),
+                IntersectionPoint.FACE_X_NEG
+            ),
+            // Around face in y = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, 0..15, -15..15),
+                IntersectionPoint.FACE_Y_POS
+            ),
+            // Around face in y = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..0, -15..15),
+                IntersectionPoint.FACE_Y_NEG
+            ),
+            // Around face in z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..15, 0..15),
+                IntersectionPoint.FACE_Z_POS
+            ),
+            // Around face in z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..15, -15..0),
+                IntersectionPoint.FACE_Z_NEG
+            ),
+            // Cuboids around the edges
+            // edge in x = 10, y = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, 0..15, -15..15),
+                IntersectionPoint.EDGE_X_POS_Y_POS
+            ),
+            // edge in x = 10, y = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..0, -15..15),
+                IntersectionPoint.EDGE_X_POS_Y_NEG
+            ),
+            // edge in x = -10, y = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, 0..15, -15..15),
+                IntersectionPoint.EDGE_X_NEG_Y_POS
+            ),
+            // edge in x = -10, y = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..0, -15..15),
+                IntersectionPoint.EDGE_X_NEG_Y_NEG
+            ),
+            // edge in x = 10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..15, 0..15),
+                IntersectionPoint.EDGE_X_POS_Z_POS
+            ),
+            // edge in x = 10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..15, -15..0),
+                IntersectionPoint.EDGE_X_POS_Z_NEG
+            ),
+            // edge in x = -10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..15, 0..15),
+                IntersectionPoint.EDGE_X_NEG_Z_POS
+            ),
+            // edge in x = -10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..15, -15..0),
+                IntersectionPoint.EDGE_X_NEG_Z_NEG
+            ),
+            // edge in y = 10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, 0..15, 0..15),
+                IntersectionPoint.EDGE_Y_POS_Z_POS
+            ),
+            // edge in y = 10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, 0..15, -15..0),
+                IntersectionPoint.EDGE_Y_POS_Z_NEG
+            ),
+            // edge in y = -10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..0, 0..15),
+                IntersectionPoint.EDGE_Y_NEG_Z_POS
+            ),
+            // edge in y = -10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..0, -15..0),
+                IntersectionPoint.EDGE_Y_NEG_Z_NEG
+            ),
+        )
+
+        @JvmStatic
+        fun subtractions(): Stream<Arguments> = Stream.of(
+            // cuboids that do not intersect
+            of(
+                Cuboid(0..5, 0..5, 0..5),
+                Cuboid(6..10, 6..10, 6..10),
+                { setOf(Cuboid(0..5, 0..5, 0..5)) },
+            ),
+            // subtrahend inside the minuend
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-5..5, -5..5, -5..5),
+                {
+                    setOf(
+                        Cuboid(-10..10, -10..10, -10..-5),
+                        Cuboid(-10..10, -10..10, 5..10),
+                        Cuboid(-10..10, -10..-5, -5..5),
+                        Cuboid(-10..10, 5..10, -5..5),
+                        Cuboid(-10..-5, -5..5, -5..5),
+                        Cuboid(5..10, -5..5, -5..5),
+                    )
+                },
+            ),
+            // minuend inside the subtrahend
+            of(
+                Cuboid(-5..5, -5..5, -5..5),
+                Cuboid(-10..10, -10..10, -10..10),
+                { emptySet<Cuboid>() },
+            ),
+            /*** Cuboids around the vertices ***/
+            // Around (-10, -10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, -15..-5, -15..-5),
+                {
+                    setOf(
+                        Cuboid(-10..10, -10..10, -5..10),
+                        Cuboid(-5..10, -10..10, -10..-5),
+                        Cuboid(-10..-5, -5..10, -10..-5),
+                    )
+                },
+            ),
+            // Around (10, -10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, -15..-5, -15..-5),
+                {
+                    setOf(
+                        Cuboid(-10..10, -10..10, -5..10),
+                        Cuboid(-10..5, -10..10, -10..-5),
+                        Cuboid(5..10, -5..10, -10..-5),
+                    )
+                },
+            ),
+            // Around (-10, 10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, 5..15, -15..-5),
+                {
+                    setOf(
+                        Cuboid(-10..10, -10..10, -5..10),
+                        Cuboid(-5..10, -10..10, -10..-5),
+                        Cuboid(-10..-5, -10..5, -10..-5),
+                    )
+                },
+            ),
+            // Around (-10, -10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, -15..-5, 5..15),
+                {
+                    setOf(
+                        Cuboid(-10..10, -10..10, -10..5),
+                        Cuboid(-5..10, -10..10, 5..10),
+                        Cuboid(-10..-5, -5..10, 5..10),
+                    )
+                },
+            ),
+            // Around (10, 10, -10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, 5..15, -15..-5),
+                {
+                    setOf(
+                        Cuboid(-10..10, -10..10, -5..10),
+                        Cuboid(-10..5, -10..10, -10..-5),
+                        Cuboid(5..10, -10..5, -10..-5),
+                    )
+                },
+            ),
+            // Around (10, -10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, -15..-5, 5..15),
+                {
+                    setOf(
+                        Cuboid(-10..10, -10..10, -10..5),
+                        Cuboid(-10..5, -10..10, 5..10), // TODO
+                        Cuboid(5..10, -5..10, 5..10), // TODO
+                    )
+                },
+            ),
+            // Around (10, 10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(5..15, 5..15, 5..15),
+                {
+                    setOf(
+                        Cuboid(-10..10, -10..10, -10..5),
+                        Cuboid(-10..5, -10..10, 5..10),
+                        Cuboid(5..10, -10..5, 5..10),
+                    )
+                }
+            ),
+            // Around (-10, 10, 10)
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..-5, 5..15, 5..15),
+                {
+                    setOf(
+                        Cuboid(-10..10, -10..10, -10..5),
+                        Cuboid(-5..10, -10..10, 5..10),
+                        Cuboid(-10..-5, -10..5, 5..10),
+                    )
+                },
+            ),
+            // Cuboids around the cube faces
+            // Around face in x = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..15, -15..15),
+                { setOf(Cuboid(-10..0, -10..10, -10..10)) }
+            ),
+            // Around face in x = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..15, -15..15),
+                { setOf(Cuboid(0..10, -10..10, -10..10)) }
+            ),
+            // Around face in y = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, 0..15, -15..15),
+                { setOf(Cuboid(-10..10, -10..0, -10..10)) }
+            ),
+            // Around face in y = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..0, -15..15),
+                { setOf(Cuboid(-10..10, 0..10, -10..10)) }
+            ),
+            // Around face in z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..15, 0..15),
+                { setOf(Cuboid(-10..10, -10..10, -10..0)) }
+            ),
+            // Around face in z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..15, -15..0),
+                { setOf(Cuboid(-10..10, -10..10, 0..10)) }
+            ),
+            // Cuboids around the edges
+            // edge in x = 10, y = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, 0..15, -15..15),
+                {
+                    setOf(
+                        Cuboid(-10..0, -10..10, -10..10),
+                        Cuboid(0..10, -10..0, -10..10),
+                    )
+                },
+            ),
+            // edge in x = 10, y = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..0, -15..15),
+                {
+                    setOf(
+                        Cuboid(-10..0, -10..10, -10..10),
+                        Cuboid(0..10, 0..10, -10..10),
+                    )
+                },
+            ),
+            // edge in x = -10, y = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, 0..15, -15..15),
+                {
+                    setOf(
+                        Cuboid(0..10, -10..10, -10..10),
+                        Cuboid(-10..0, -10..0, -10..10),
+                    )
+                },
+            ),
+            // edge in x = -10, y = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..0, -15..15),
+                {
+                    setOf(
+                        Cuboid(0..10, -10..10, -10..10),
+                        Cuboid(-10..0, 0..10, -10..10),
+                    )
+                },
+            ),
+            // edge in x = 10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..15, 0..15),
+                {
+                    setOf(
+                        Cuboid(-10..0, -10..10, -10..10),
+                        Cuboid(0..10, -10..10, -10..0),
+                    )
+                },
+            ),
+            // edge in x = 10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(0..15, -15..15, -15..0),
+                {
+                    setOf(
+                        Cuboid(-10..0, -10..10, -10..10),
+                        Cuboid(0..10, -10..10, 0..10),
+                    )
+                },
+            ),
+            // edge in x = -10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..15, 0..15),
+                {
+                    setOf(
+                        Cuboid(0..10, -10..10, -10..10),
+                        Cuboid(-10..0, -10..10, -10..0),
+                    )
+                },
+            ),
+            // edge in x = -10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..0, -15..15, -15..0),
+                {
+                    setOf(
+                        Cuboid(0..10, -10..10, -10..10),
+                        Cuboid(-10..0, -10..10, 0..10),
+                    )
+                },
+            ),
+            // edge in y = 10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, 0..15, 0..15),
+                {
+                    setOf(
+                        Cuboid(-10..10, -10..0, -10..10),
+                        Cuboid(-10..10, 0..10, -10..0),
+                    )
+                },
+            ),
+            // edge in y = 10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, 0..15, -15..0),
+                {
+                    setOf(
+                        Cuboid(-10..10, -10..0, -10..10),
+                        Cuboid(-10..10, 0..10, 0..10),
+                    )
+                },
+            ),
+            // edge in y = -10, z = 10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..0, 0..15),
+                {
+                    setOf(
+                        Cuboid(-10..10, 0..10, -10..10),
+                        Cuboid(-10..10, -10..0, -10..0),
+                    )
+                },
+            ),
+            // edge in y = -10, z = -10
+            of(
+                Cuboid(-10..10, -10..10, -10..10),
+                Cuboid(-15..15, -15..0, -15..0),
+                {
+                    setOf(
+                        Cuboid(-10..10, 0..10, -10..10),
+                        Cuboid(-10..10, -10..0, 0..10),
+                    )
+                },
+            ),
+        )
+
     }
 }
-
-private fun cuboidOn(x: Int, y: Int, z: Int): Cuboid =
-    Cuboid(0..x, 0..y, 0..z, true)
-
-private fun cuboidOff(x: Int, y: Int, z: Int): Cuboid =
-    Cuboid(0..x, 0..y, 0..z, false)
