@@ -34,7 +34,7 @@ class Day24Test : BaseTest() {
     fun `should make the calculations`() {
         val program = listOf(inp(X), mul(X, -1))
 
-        assertThat(program.result(Alu(input = listOf(10L))).x).isEqualTo(-10)
+        assertThat(program.result(Alu(input = listOf(10))).x).isEqualTo(-10)
     }
 
     @Test
