@@ -13,7 +13,6 @@ fun part1(player1Start: Int, player2Start: Int): Int {
     return game.looser!!.score * (game.rolls)
 }
 
-
 val winners: DeepRecursiveFunction<Game, Triple<Long, Long, Long>> = DeepRecursiveFunction { game ->
     if (game.finished) {
         if (game.winner!! == PLAYER_1) {
@@ -22,14 +21,22 @@ val winners: DeepRecursiveFunction<Game, Triple<Long, Long, Long>> = DeepRecursi
             Triple(0, 1, 1)
         }
     } else {
-        val first = callRecursive(game.next(1))
-        val second = callRecursive(game.next(2))
-        val third = callRecursive(game.next(3))
-        Triple(first = first.first + second.first + third.first,
-            second = first.second + second.second + third.second,
-            third = first.third + second.third + third.third)
+        possibleCosmicRolls.map { (round, count) ->
+            with (callRecursive(game.nextRound(round))) {
+                Triple(first * count, second * count, third * count)
+            }
+        }.reduce { one, other -> Triple(one.first + other.first, one.second + other.second, one.third + other.third) }
     }
 }
+
+val possibleCosmicRolls: Map<Int, Int> =
+    (1..3).flatMap { first ->
+        (1..3).flatMap { second ->
+            (1..3).map { third ->
+                first + second + third
+            }
+        }
+    }.groupBy { it }.mapValues { (_, values) -> values.size }
 
 fun part2(player1Start: Int, player2Start: Int): Pair<Long, Long> {
     val result = winners(Game.forStart(player1Start, player2Start, 21))
@@ -47,6 +54,20 @@ data class Game(
     private val limit: Int = 1000,
 ) {
     fun next(): Game = next(roll())
+
+    fun nextRound(result: Int): Game {
+        if (finished) throw IllegalStateException("Game already finished")
+        val next = if (inTurn == PLAYER_1) {
+            val newPlayer1 = player1.move(result, true)
+            val winner = if (winner != null || finished(newPlayer1)) player1.id else null
+            copy(player1 = newPlayer1, winner = winner, dice = dice, rolls = rolls + 3)
+        } else {
+            val newPlayer2 = player2.move(result, true)
+            val winner = if (winner != null || finished(newPlayer2)) player2.id else null
+            copy(player2 = newPlayer2, winner = winner, dice = dice, rolls = rolls + 3)
+        }
+        return next
+    }
 
     fun next(dice: Int): Game {
         if (finished) throw IllegalStateException("Game already finished")
