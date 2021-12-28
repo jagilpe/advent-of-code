@@ -16,7 +16,8 @@ dependencies {
 
     implementation(kotlin("stdlib"))
     implementation("io.arrow-kt:arrow-core")
-
+    implementation("org.jetbrains.kotlinx:multik-api:0.1.1")
+    implementation("org.jetbrains.kotlinx:multik-default:0.1.1")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.assertj:assertj-core:3.18.1")
