@@ -1,174 +1,81 @@
-@file:OptIn(ExperimentalStdlibApi::class)
-
 package com.gilpereda.adventsofcode.adventsofcode2021.day23
 
 import com.gilpereda.adventsofcode.adventsofcode2021.Executable
+import com.gilpereda.adventsofcode.adventsofcode2021.day23.Amphipod.*
 
+/*
+#############
+#12.3.4.5.67#
+###0#0#0#0###
+  #1#1#1#1#
+  #2#2#2#2#
+  #3#3#3#3#
+  #########
+ */
 
-val part1: Executable = { input ->
-    val game = parse(input)
+val initial: Board = Board(
+    hall = List(7) { Free },
+    rooms = mapOf(
+        AMBER to listOf(Occupied(BRONZE), Occupied(AMBER, false)),
+        BRONZE to listOf(Occupied(COPPER), Occupied(DESERT)),
+        COPPER to listOf(Occupied(BRONZE), Occupied(COPPER, false)),
+        DESERT to listOf(Occupied(DESERT), Occupied(AMBER)),
+    )
+)
 
-    winner(listOf(game))
-    TODO()
+val part1: (Board) -> Int = { board ->
+
+    val winners = generateSequence(Round.firstRound(board), Round::next)
+        .mapIndexed { index, round ->
+            if (index % 10_000 == 0) println("open: ${round.open.size}, finished: ${round.finished.size}, visited: ${round.visited.size}, discarded: ${round.discarded}")
+            round
+        }
+        .last()
+
+    val game = winners.finished.minByOrNull { it.cost }
+
+    println("cost: ${game!!.cost}")
+    game!!.cost
 }
 
 val part2: Executable = { TODO() }
 
-val played = mutableListOf<List<List<Cell>>>()
-val winner: DeepRecursiveFunction<List<Game>, List<Game>> = DeepRecursiveFunction { games ->
-    println(games.size)
-    val (finished, notFinished) = games.partition { it.finished }
-    played.addAll(games.map { it.cellMap })
-    val next = notFinished.flatMap { it.nextMoves() }.filter { it.cellMap !in played }
-    if (notFinished.isEmpty()) {
-        finished
-    } else {
-        finished + callRecursive(next)
-    }
-}
 
-data class Game(val cellMap: List<List<Cell>>, val moves: List<Move> = emptyList()) {
-    override fun toString(): String =
-        cellMap.joinToString("\n") { it.joinToString("") }
+data class Round(
+    val open: List<Game> = emptyList(),
+    val finished: List<Game> = emptyList(),
+    val visited: Map<Int, Int> = emptyMap(),
+    val discarded: Int = 0,
+    val minCost: Int = Int.MAX_VALUE
+) {
 
-    private fun Room.accepts(amphipod: Amphipod): Boolean =
-        free && amphipod == accepted
-                && cellMap.flatten().filter { it is Room && it.accepted == amphipod }
-            .all { it.free || it.amphipod == amphipod }
+    fun next(): Round? {
+        if (open.isEmpty()) return null
 
-    fun canMoveTo(from: Point, to: Point): Boolean {
-        val origin = cell(from)
-        val amphipod = origin.amphipod
-        return if (amphipod != null && (origin !is Room || !origin.revisited )) {
-            when (val destination = cell(to)) {
-                is Hall -> destination.free && origin is Room
-                is Room -> destination.accepts(amphipod)
-                else -> false
-            }
+        val game = open.last()
+        return if (game.finished) {
+            val newFinished = finished + game
+            val newMinCost = newFinished.minOfOrNull { it.cost } ?: Int.MAX_VALUE
+            println("found one with cost: ${game.cost}")
+            println("current minimum cost: $minCost")
+            copy(open = open.dropLast(1), finished = newFinished, visited = visited + mapOf(game.board.hashCode() to game.cost), minCost = newMinCost)
         } else {
-            false
-        }
-    }
-
-    fun canMoveThrough(through: Point): Boolean = cell(through).free
-
-    private fun makeMove(move: Move): Game {
-        val (amphipod, from, to) = move
-        val newCellMap = cellMap.mapIndexed { y, row ->
-            row.mapIndexed { x, cell ->
-                when {
-                    x == from.x && y == from.y -> cell.empty()
-                    x == to.x && y == to.y -> cell.fill(amphipod)
-                    else -> cell
-                }
+            val (next, newDiscarded) = game.next().partition { newGame ->
+                val board = newGame.board
+                val visitedCost = visited[board.hashCode()]
+                board.finished || !visited.containsKey(board.hashCode()) || visitedCost == null || newGame.cost < visitedCost
             }
-        }
-        return copy(cellMap = newCellMap, moves = moves + move )
-    }
-
-    fun nextMoves(): Sequence<Game> =
-        cellMap.flatMapIndexed { y, row ->
-            row.flatMapIndexed { x, cell ->
-                val amphipod = cell.amphipod
-                if (amphipod != null) {
-                    nextMovesFrom(amphipod, Point(x, y))
-                } else {
-                    emptyList()
-                }
-            }
-        }.asSequence()
-            .map { makeMove(it) }
-
-    private fun nextMovesFrom(amphipod: Amphipod, point: Point): List<Move> {
-        tailrec fun go(visited: Set<Point>, neighbours: List<Point>, consumed: Int, acc: List<Move>): List<Move> {
-            val moves = neighbours.filter { it !in visited && canMoveTo(point, it) }
-                .map { Move(amphipod, point, it, consumed + amphipod.consume) }
-            val newNeighbours = neighbours
-                .flatMap { it.neighbours }
-                .filter { it !in visited && canMoveThrough(it) }
-            return if (newNeighbours.isNotEmpty()) {
-                go(visited + neighbours, newNeighbours, amphipod.consume + consumed, acc + moves)
-            } else {
-                acc + moves
-            }
-        }
-
-        val neighbours = point.neighbours.filter { canMoveThrough(it) }
-        return go(setOf(point), neighbours, 0, emptyList())
-    }
-
-
-    val finished: Boolean
-        get() = cellMap.flatten().filterIsInstance<Room>().all { it.amphipod == it.accepted }
-
-    private fun cell(point: Point): Cell = cellMap[point.y][point.x]
-}
-
-val Point.neighbours: List<Point>
-    get() = listOf(
-        Point(x - 1, y),
-        Point(x, y - 1),
-        Point(x + 1, y),
-        Point(x, y + 1),
-    )
-
-data class Move(val amphipod: Amphipod, val from: Point, val to: Point, val consumed: Int)
-
-fun parse(input: Sequence<String>): Game =
-    input.mapIndexed { y, row ->
-        row.mapIndexed { x, char ->
-            when (char) {
-                '#' -> Wall
-                '.' -> parseEmptyCell(x, y)
-                else -> parseOccupiedCell(char, x, y)
-            }
-        }
-    }.toList().let(::Game)
-
-fun parseEmptyCell(x: Int, y: Int): Cell =
-    when (y) {
-        1 -> when (x) {
-            3, 5, 7, 9 -> Door
-            else -> Hall()
-        }
-        else -> when (x) {
-            3 -> Room(Amphipod.AMBER)
-            5 -> Room(Amphipod.BRONZE)
-            7 -> Room(Amphipod.COPPER)
-            9 -> Room(Amphipod.DESERT)
-            else -> throw Exception("illegal room point $x, $y")
+            copy(
+                open = open.dropLast(1) + next,
+                visited = visited + mapOf(game.board.hashCode() to game.cost),
+                discarded = discarded + newDiscarded.size
+            )
         }
     }
 
-fun parseOccupiedCell(char: Char, x: Int, y: Int): Cell {
-    val amphipod = when (char) {
-        'A' -> Amphipod.AMBER
-        'B' -> Amphipod.BRONZE
-        'C' -> Amphipod.COPPER
-        'D' -> Amphipod.DESERT
-        else -> throw IllegalArgumentException()
+    companion object {
+        fun firstRound(board: Board): Round = Round(open = listOf(Game(board)))
     }
-    return when (y) {
-        1 -> when (x) {
-            3, 5, 7, 9 -> throw IllegalArgumentException("Doors can not be")
-            else -> Hall(amphipod)
-        }
-        else -> when (x) {
-            3 -> Room(Amphipod.AMBER, amphipod)
-            5 -> Room(Amphipod.BRONZE, amphipod)
-            7 -> Room(Amphipod.COPPER, amphipod)
-            9 -> Room(Amphipod.DESERT, amphipod)
-            else -> throw Exception("illegal room point $x, $y")
-        }
-    }
-}
-
-
-sealed interface Cell {
-    val free: Boolean
-    val amphipod: Amphipod?
-    fun empty(): Cell
-    fun fill(amphipod: Amphipod?): Cell
 }
 
 enum class Amphipod(val consume: Int) {
@@ -178,41 +85,175 @@ enum class Amphipod(val consume: Int) {
     DESERT(1000)
 }
 
-object Wall : Cell {
-    override val free: Boolean = false
-    override val amphipod: Amphipod? = null
-    override fun empty(): Cell = throw UnsupportedOperationException()
-    override fun fill(amphipod: Amphipod?): Cell = throw UnsupportedOperationException()
+sealed interface CellContent
 
-    override fun toString(): String = "#"
+object Free : CellContent {
+    override fun toString(): String = "."
 }
 
-data class Hall(override val amphipod: Amphipod? = null) : Cell {
-    override val free: Boolean = amphipod == null
-    override fun empty(): Cell = copy(amphipod = null)
-    override fun fill(amphipod: Amphipod?): Cell = copy(amphipod = amphipod)
-
-    override fun toString(): String = if (amphipod != null) "${amphipod.name.first()}" else "."
+data class Occupied(val amphipod: Amphipod, val unblocked: Boolean = true) : CellContent {
+    override fun toString(): String = "${amphipod.name.first()}"
 }
 
-object Door : Cell {
-    override val free: Boolean = true
-    override val amphipod: Amphipod? = null
-    override fun empty(): Cell = throw UnsupportedOperationException()
-    override fun fill(amphipod: Amphipod?): Cell = throw UnsupportedOperationException()
+data class Game(
+    val board: Board,
+    val moves: List<Move> = emptyList()
+) {
+    val finished: Boolean
+        get() = board.finished
 
-    override fun toString(): String = "x"
+    val cost: Int
+        get() = moves.sumOf { it.cost }
+
+    fun next(): List<Game> =
+        (nextFromHall() + nextFromRooms())
+//            .sortedBy { it.cost }
+            .sortedByDescending { it.cost }
+
+    private fun nextFromHall(): List<Game> =
+        board.hall
+            .flatMapIndexed { hallCell, content ->
+                if (content is Occupied) {
+                    hallToPath[hallCell]?.filter {
+                        it.isNotBlocked && it.room == content.amphipod && roomIsFree(it.room)
+                    } ?: emptyList()
+                } else {
+                    emptyList()
+                }
+            }
+            .mapNotNull(this::moveFromHallToRoom)
+
+    private fun nextFromRooms(): List<Game> =
+        board.rooms.filter { (_, content) ->
+            content.filterIsInstance<Occupied>()
+                .firstOrNull()?.unblocked ?: false
+        }.flatMap { (room, _) ->
+            roomToPath[room]!!.filter { it.isNotBlocked && hallIsFree(it.hall) }
+        }
+            .mapNotNull(this::moveFromRoomToHall)
+
+    private fun moveFromHallToRoom(path: Path): Game? {
+        val roomIndex = board.rooms[path.room]!!.lastIndexOf(Free)
+        return if (roomIndex != -1) {
+            val hall = board.hall.mapIndexed { id, cell ->
+                if (id == path.hall) Free
+                else cell
+            }
+            val rooms = board.rooms.mapValues { (room, cells) ->
+                if (room == path.room) {
+                    cells.mapIndexed { i, cell -> if (i == roomIndex) Occupied(room, false) else cell }
+                } else {
+                    cells
+                }
+            }
+            val amphipod = path.room
+            val steps = path.steps + roomIndex
+            val move = Move(amphipod, from = "H${path.hall}", to = "R-$amphipod-$roomIndex", cost = steps * amphipod.consume, steps = steps)
+            Game(Board(hall, rooms), moves = moves + move)
+        } else {
+            null
+        }
+    }
+
+    private fun moveFromRoomToHall(path: Path): Game? {
+        val cellContent = board.rooms[path.room]!!
+            .mapIndexed { index, cell -> index to cell  }
+            .firstOrNull { (_, cell) -> cell is Occupied }
+        return if (cellContent != null) {
+            val (roomIndex, content) = cellContent
+            val amphipod = (content as Occupied).amphipod
+            val hall = board.hall.mapIndexed { id, cell ->
+                if (id == path.hall) Occupied(amphipod)
+                else cell
+            }
+            val rooms = board.rooms.mapValues { (room, cells) ->
+                if (room == path.room) {
+                    cells.mapIndexed { i, cell -> if (i == roomIndex) Free else cell }
+                } else {
+                    cells
+                }
+            }
+            val steps = path.steps + roomIndex
+            val move = Move(amphipod, from = "R-${path.room}-$roomIndex", to = "H${path.hall}", cost = steps * amphipod.consume, steps = steps)
+            Game(Board(hall, rooms), moves = moves + move)
+        } else {
+            null
+        }
+    }
+
+    private val Path.isNotBlocked: Boolean
+        get() = board.hall.filterIndexed { i, cell -> i in cellsBetween && cell is Occupied }.isEmpty()
+
+    private fun roomIsFree(amphipod: Amphipod): Boolean =
+        board.rooms[amphipod]!!.all { it is Free || (it is Occupied && it.amphipod == amphipod) }
+
+    private fun hallIsFree(hall: Int): Boolean =
+        board.hall[hall] is Free
 }
 
-data class Room(val accepted: Amphipod, override val amphipod: Amphipod? = null) : Cell {
-    var revisited: Boolean = false
-    override val free: Boolean = amphipod == null
-    override fun empty(): Cell = copy(amphipod = null)
-    override fun fill(amphipod: Amphipod?): Cell = copy(amphipod = amphipod).apply { revisited = true }
+data class Move(
+    val amphipod: Amphipod,
+    val from: String,
+    val to: String,
+    val cost: Int,
+    val steps: Int,
+)
 
-    override fun toString(): String = if (amphipod != null) "${amphipod.name.first()}" else "o"
+data class Board(
+    val hall: List<CellContent>,
+    val rooms: Map<Amphipod, List<CellContent>>
+) {
+    val finished: Boolean
+        get() = hall.all { it is Free } && rooms.all { (amphipod, room) -> room.all { it is Occupied && it.amphipod == amphipod } }
+
+    override fun toString(): String = """
+        ##############
+        #${hall[0]}${hall[1]}.${hall[2]}.${hall[3]}.${hall[4]}.${hall[5]}${hall[6]}#
+        ###${rooms[AMBER]!![0]}#${rooms[BRONZE]!![0]}#${rooms[COPPER]!![0]}#${rooms[DESERT]!![0]}###
+        ###${rooms[AMBER]!![1]}#${rooms[BRONZE]!![1]}#${rooms[COPPER]!![1]}#${rooms[DESERT]!![1]}###
+          ##########
+    """.trimIndent()
 }
 
-data class Point(val x: Int, val y: Int) {
-    override fun toString(): String = "($x, $y)"
-}
+val paths: List<Path> =
+    listOf(
+        Path(0, AMBER, 3, listOf(1)),
+        Path(0, BRONZE, 5, listOf(1, 2)),
+        Path(0, COPPER, 7, listOf(1, 2, 3)),
+        Path(0, DESERT, 9, listOf(1, 2, 3, 4)),
+        Path(1, AMBER, 2, emptyList()),
+        Path(1, BRONZE, 4, listOf(2)),
+        Path(1, COPPER, 6, listOf(2, 3)),
+        Path(1, DESERT, 8, listOf(2, 3, 4)),
+        Path(2, AMBER, 2, emptyList()),
+        Path(2, BRONZE, 2, emptyList()),
+        Path(2, COPPER, 4, listOf(3)),
+        Path(2, DESERT, 6, listOf(3, 4)),
+        Path(3, AMBER, 4, listOf(2)),
+        Path(3, BRONZE, 2, emptyList()),
+        Path(3, COPPER, 2, emptyList()),
+        Path(3, DESERT, 4, listOf(4)),
+        Path(4, AMBER, 6, listOf(2, 3)),
+        Path(4, BRONZE, 4, listOf(3)),
+        Path(4, COPPER, 2, emptyList()),
+        Path(4, DESERT, 2, emptyList()),
+        Path(5, AMBER, 8, listOf(2, 3, 4)),
+        Path(5, BRONZE, 6, listOf(3, 4)),
+        Path(5, COPPER, 4, listOf(4)),
+        Path(5, DESERT, 2, emptyList()),
+        Path(6, AMBER, 9, listOf(2, 3, 4, 5)),
+        Path(6, BRONZE, 7, listOf(3, 4, 5)),
+        Path(6, COPPER, 5, listOf(4, 5)),
+        Path(6, DESERT, 3, listOf(5)),
+    )
+
+data class Path(
+    val hall: Int,
+    val room: Amphipod,
+    val steps: Int,
+    val cellsBetween: List<Int>,
+)
+
+val hallToPath: Map<Int, List<Path>> = paths.groupBy { it.hall }
+
+val roomToPath: Map<Amphipod, List<Path>> = paths.groupBy { it.room }
