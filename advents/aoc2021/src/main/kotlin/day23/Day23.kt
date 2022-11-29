@@ -35,7 +35,7 @@ val part1: (Board) -> Int = { board ->
     val game = winners.finished.minByOrNull { it.cost }
 
     println("cost: ${game!!.cost}")
-    game!!.cost
+    game.cost
 }
 
 val part2: Executable = { TODO() }
