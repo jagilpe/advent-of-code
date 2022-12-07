@@ -5,19 +5,49 @@ val DIR_OUTPUT_REGEX = "dir (.*)".toRegex()
 val FILE_OUTPUT_REGEX = "([0-9]+) .+".toRegex()
 
 fun firstTask(input: Sequence<String>): String {
-//    val list = input.map(::parseLine).toList()
-    return TODO()
+    val root = getFs(input)
+    return root.dirs.map { it.size }.filter { it <= 100000 }.sum().toString()
 }
 
-fun secondTask(input: Sequence<String>): String = TODO()
+fun secondTask(input: Sequence<String>): String {
+    val root = getFs(input)
+    val totalSize = root.size
+    val toFreeUp = totalSize - 30_000_000
+    val toDelete = root.dirs.map { it.size }
+    return toDelete.filter { it >= toFreeUp }.min().toString()
+}
+
+fun getFs(input: Sequence<String>): Dir {
+    val root = Dir("/")
+    var current = root
+    input.toList().filter { it.isNotBlank() }.map(::parseLine).forEach { cmd ->
+        when (cmd) {
+            is Cd -> {
+                try {
+                    current = if (cmd.dir == "..") {
+                        current.parent!!
+                    } else {
+                        current.children.filterIsInstance<Dir>().first {
+                            it.name == cmd.dir
+                        }
+                    }
+                } catch (ex: Exception) {
+                    throw ex
+                }
+            }
+
+            is Ls -> {}
+            is DirOutput -> current.children.add(Dir(cmd.dir, parent = current))
+            is FileOutput -> current.children.add(File(cmd.size))
+        }
+    }
+    return root
+}
 
 
 fun parseLine(line: String): CmdItem =
-    findCd(line) ?: findLs(line) ?: findDirOutput(line) ?: findFileOutput(line) ?: throw Exception()
+    findCd(line) ?: findLs(line) ?: findDirOutput(line) ?: findFileOutput(line) ?: throw Exception(line)
 
-fun parseCommands(commands: List<CmdItem>): Dir {
-    fun go(current: Dir, rest: List<CmdItem>): Dir
-}
 
 fun findCd(line: String): Cd? = CD_REGEX.find(line)
     ?.destructured?.let { (dir) -> Cd(dir) }
@@ -52,17 +82,28 @@ data class FileOutput(
 
 sealed interface FsElem {
     val size: Int
+    fun print(indent: String = ""): String
 }
 
 data class Dir(
     val name: String,
-    val parent: Dir,
-    val children: List<FsElem>
+    val parent: Dir? = null,
+    val children: MutableList<FsElem> = mutableListOf()
 ) : FsElem {
     override val size: Int
         get() = children.sumOf { it.size }
+
+    val dirs: List<Dir>
+        get() = children.filterIsInstance<Dir>().flatMap { it.dirs + it } + this
+
+    override fun print(indent: String): String =
+"""$indent|$name - $size
+${children.joinToString("\n") { it.print("$indent  ") }}"""
 }
 
 data class File(
     override val size: Int
-) : FsElem
+) : FsElem {
+    override fun print(indent: String): String =
+        "$indent|f: $size"
+}

@@ -21,23 +21,23 @@ abstract class BaseTest {
         assertThat(run(input.splitToSequence("\n"))).isEqualTo(expected)
     }
 
-    @Test
-    fun `should work with the example - part 1`() {
-        check(example to result1, run1)
-    }
+//    @Test
+//    fun `should work with the example - part 1`() {
+//        check(example to result1, run1)
+//    }
 
     @Test
     fun `should work with the example - part 2`() {
         check(example to result2, run2)
     }
-
-    @Test
-    fun `should return the result - part 1`() {
-        val result = run1(inputSequence)
-
-        assertThat(result).isNotNull
-        println("Result: $result")
-    }
+//
+//    @Test
+//    fun `should return the result - part 1`() {
+//        val result = run1(inputSequence)
+//
+//        assertThat(result).isNotNull
+//        println("Result: $result")
+//    }
 
     @Test
     fun `should return the result - part 2`() {
@@ -46,6 +46,4 @@ abstract class BaseTest {
         assertThat(result).isNotNull
         println("Result: $result")
     }
-
 }
-
