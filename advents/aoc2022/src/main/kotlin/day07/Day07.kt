@@ -2,7 +2,7 @@ package com.gilpereda.aoc2022.day07
 
 val CD_REGEX = "\\\$ cd (.+)".toRegex()
 val DIR_OUTPUT_REGEX = "dir (.*)".toRegex()
-val FILE_OUTPUT_REGEX = "([0-9]+) .+".toRegex()
+val FILE_OUTPUT_REGEX = "([0-9]+) (.+)".toRegex()
 
 fun firstTask(input: Sequence<String>): String {
     val root = getFs(input)
@@ -12,13 +12,13 @@ fun firstTask(input: Sequence<String>): String {
 fun secondTask(input: Sequence<String>): String {
     val root = getFs(input)
     val totalSize = root.size
-    val toFreeUp = totalSize - 30_000_000
+    val toFreeUp = totalSize - 40_000_000
     val toDelete = root.dirs.map { it.size }
     return toDelete.filter { it >= toFreeUp }.min().toString()
 }
 
 fun getFs(input: Sequence<String>): Dir {
-    val root = Dir("/")
+    val root = Dir("root")
     var current = root
     input.toList().filter { it.isNotBlank() }.map(::parseLine).forEach { cmd ->
         when (cmd) {
@@ -38,7 +38,7 @@ fun getFs(input: Sequence<String>): Dir {
 
             is Ls -> {}
             is DirOutput -> current.children.add(Dir(cmd.dir, parent = current))
-            is FileOutput -> current.children.add(File(cmd.size))
+            is FileOutput -> current.children.add(File(cmd.name, cmd.size))
         }
     }
     return root
@@ -58,7 +58,7 @@ fun findDirOutput(line: String): DirOutput? =
     DIR_OUTPUT_REGEX.find(line)?.destructured?.let { (dir) -> DirOutput(dir) }
 
 fun findFileOutput(line: String): FileOutput? =
-    FILE_OUTPUT_REGEX.find(line)?.destructured?.let { (size) -> FileOutput(size.toInt()) }
+    FILE_OUTPUT_REGEX.find(line)?.destructured?.let { (size, name) -> FileOutput(name, size.toInt()) }
 
 
 sealed interface CmdItem
@@ -76,6 +76,7 @@ data class DirOutput(
 ) : LsOutput
 
 data class FileOutput(
+    val name: String,
     val size: Int
 ) : LsOutput
 
@@ -97,13 +98,14 @@ data class Dir(
         get() = children.filterIsInstance<Dir>().flatMap { it.dirs + it } + this
 
     override fun print(indent: String): String =
-"""$indent|$name - $size
+"""$indent$name - $size:
 ${children.joinToString("\n") { it.print("$indent  ") }}"""
 }
 
 data class File(
+    val name: String,
     override val size: Int
 ) : FsElem {
     override fun print(indent: String): String =
-        "$indent|f: $size"
+        "$indent$name: $size"
 }

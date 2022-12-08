@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 
 /**
  * Part 2 : 24390891 -> Too high
+ *          7068748
  */
 class Day07Test : BaseTest() {
     override val example: String = """
@@ -46,24 +47,24 @@ class Day07Test : BaseTest() {
     override val run2: Executable = ::secondTask
 
 
-//    @Test
-//    fun `should find the cd command`() {
-//        assertThat(parseLine("${'$'} cd /")).isEqualTo(Cd("/"))
-//    }
-//
-//    @Test
-//    fun `should find the ls command`() {
-//        assertThat(parseLine("${'$'} ls")).isEqualTo(Ls)
-//    }
-//
-//    @Test
-//    fun `should find the dir output`() {
-//        assertThat(parseLine("dir e")).isEqualTo(DirOutput("e"))
-//    }
-//
-//    @Test
-//    fun `should find the file output`() {
-//        assertThat(parseLine("4060174 j")).isEqualTo(FileOutput(4060174))
-//    }
+    @Test
+    fun `should find the cd command`() {
+        assertThat(parseLine("${'$'} cd /")).isEqualTo(Cd("/"))
+    }
+
+    @Test
+    fun `should find the ls command`() {
+        assertThat(parseLine("${'$'} ls")).isEqualTo(Ls)
+    }
+
+    @Test
+    fun `should find the dir output`() {
+        assertThat(parseLine("dir e")).isEqualTo(DirOutput("e"))
+    }
+
+    @Test
+    fun `should find the file output`() {
+        assertThat(parseLine("4060174 j")).isEqualTo(FileOutput("j", 4060174))
+    }
 
 }
