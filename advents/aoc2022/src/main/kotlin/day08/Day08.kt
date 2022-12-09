@@ -1,5 +1,7 @@
 package com.gilpereda.aoc2022.day08
 
+import java.util.stream.IntStream.IntMapMultiConsumer
+
 typealias Forest = List<List<Int>>
 
 fun firstTask(input: Sequence<String>): String {
@@ -14,9 +16,9 @@ fun secondTask(input: Sequence<String>): String {
     val forest = input.parsed
     val forestT = transpose(forest)
     val flatMapIndexed = forest.flatMapIndexed { x, line ->
-        line.mapIndexed { y, _ -> Triple(x, y, Point(x, y, forest, forestT).scenicScore) }
+        line.mapIndexed { y, _ -> Point(x, y, forest, forestT).scenicScore }
     }
-    return flatMapIndexed.maxOfOrNull { it.third }.toString()
+    return flatMapIndexed.maxOfOrNull { it.score }.toString()
 }
 
 val Sequence<String>.parsed: Forest
@@ -71,20 +73,48 @@ data class Point(
         }
     private val treesToTheWest = forest[x].slice(y + 1 until forestWidth)
 
-    val scenicScore: Int
-        get() =
-            visibleTreesToNorth * visibleTreesToSouth * visibleTreesToEast * visibleTreesToWest
+    val scenicScore: VisibleTrees
+        get() = VisibleTrees(
+            x = x,
+            y = y,
+            h = height,
+            north = visibleTreesToNorth,
+            south = visibleTreesToSouth,
+            east = visibleTreesToEast,
+            west = visibleTreesToWest,
+            score = visibleTreesToNorth * visibleTreesToSouth * visibleTreesToEast * visibleTreesToWest,
+        )
 
     private val visibleTreesToNorth: Int
-        get() = treesToTheNorth.reversed().takeWhile { it <= height }.count()
+        get() =
+            (treesToTheNorth + 0).reversed().visibleTrees
+
 
     private val visibleTreesToSouth: Int
-        get() = treesToTheNorth.takeWhile { it <= height }.count()
+        get() =
+            (listOf(0) + treesToTheSouth).visibleTrees
 
     private val visibleTreesToEast: Int
-        get() = treesToTheEast.reversed().takeWhile { it <= height }.count()
+        get() =
+            (treesToTheEast + 0).reversed().visibleTrees
 
     private val visibleTreesToWest: Int
-        get() = treesToTheWest.takeWhile { it <= height }.count()
+        get() =
+            (listOf(0) + treesToTheWest).visibleTrees
+
+    private val List<Int>.visibleTrees: Int
+        get() = windowed(2, 1, false)
+            .takeWhile { (first, _) -> first < height }.count()
 
 }
+
+data class VisibleTrees(
+    val x: Int,
+    val y: Int,
+    val h: Int,
+    val north: Int,
+    val south: Int,
+    val east: Int,
+    val west: Int,
+    val score: Int,
+)

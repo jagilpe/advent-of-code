@@ -5,6 +5,10 @@ import com.gilpereda.aoc2022.Executable
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
+
+/**
+ * 480 -> Too low
+ */
 class Day08Test : BaseTest() {
     override val example: String = """30373
 25512
