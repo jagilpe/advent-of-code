@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Test
 abstract class BaseTest {
 
     abstract val example: String
+    open val example2: String
+        get() = example
+
     abstract val result1: String
     abstract val result2: String
     abstract val input: String
@@ -15,9 +18,9 @@ abstract class BaseTest {
 
     private val inputSequence: Sequence<String>
         get() =
-            BaseTest::class.java.getResourceAsStream(input)!!.bufferedReader().lineSequence()
+            BaseTest::class.java.getResourceAsStream(input)!!.bufferedReader().lineSequence().filter { it.isNotBlank() }
 
-    private fun check(example: Pair<String, String>, run: Executable) {
+    protected fun check(example: Pair<String, String>, run: Executable) {
         val (input, expected) = example
         assertThat(run(input.splitToSequence("\n"))).isEqualTo(expected)
     }
@@ -29,7 +32,7 @@ abstract class BaseTest {
 
     @Test
     fun `should work with the example - part 2`() {
-        check(example to result2, run2)
+        check(example2 to result2, run2)
     }
 
     @Test
