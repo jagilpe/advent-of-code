@@ -9,12 +9,13 @@ fun secondTask(input: Sequence<String>): String =
 fun runTask(input: Sequence<String>, times: Int, divideWorryLevelBy: Long): String {
     val text = input.toList()
     val monkeys = text.joinToString("\n").parsed()
+    val mcm = monkeys.map { it.divisibleBy }.reduce { one, other -> one * other }
     val initialState = State(
         monkeys = monkeys,
         inspections = List(monkeys.size) { index -> index to 0L }.toMap()
     )
     return (0 until times).fold(initialState) { state, round ->
-        round(state, divideWorryLevelBy).also {
+        round(state, divideWorryLevelBy, mcm).also {
             if (round in setOf(1, 20, 1_000, 2_000, 3_000)) {
                 println("Round: $round")
                 println("Inspections: ${state.inspections}")
@@ -25,16 +26,16 @@ fun runTask(input: Sequence<String>, times: Int, divideWorryLevelBy: Long): Stri
         .sortedDescending().take(2).reduce { acc, next -> acc * next }.toString()
 }
 
-fun round(state: State, divideWorryLevelBy: Long): State =
-    state.monkeys.foldIndexed(state) { id, state, _ -> turn(id, state, divideWorryLevelBy) }
+fun round(state: State, divideWorryLevelBy: Long, mcm: Long): State =
+    state.monkeys.foldIndexed(state) { id, state, _ -> turn(id, state, divideWorryLevelBy, mcm) }
 
-fun turn(id: Int, state: State, divideWorryLevelBy: Long): State {
+fun turn(id: Int, state: State, divideWorryLevelBy: Long, mcm: Long): State {
     val monkey = state.monkeys[id]!!
     val inspected = monkey.items.size
     val throwTo = monkey.items.map { item ->
         if (item < 0) throw Exception("Illegal item: $item")
         val worryLevel: Long = monkey.operation.apply(item) / divideWorryLevelBy
-        (if (worryLevel % monkey.divisibleBy == 0L) monkey.ifTrueThrowToMonkey else monkey.ifFalseThrowToMonkey) to worryLevel
+        (if (worryLevel % monkey.divisibleBy == 0L) monkey.ifTrueThrowToMonkey else monkey.ifFalseThrowToMonkey) to worryLevel % mcm
     }.groupBy({ it.first }, { it.second })
 
     return State(
