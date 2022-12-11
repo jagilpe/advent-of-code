@@ -18,7 +18,7 @@ abstract class BaseTest {
 
     private val inputSequence: Sequence<String>
         get() =
-            BaseTest::class.java.getResourceAsStream(input)!!.bufferedReader().lineSequence().filter { it.isNotBlank() }
+            BaseTest::class.java.getResourceAsStream(input)!!.bufferedReader().lineSequence()
 
     protected fun check(example: Pair<String, String>, run: Executable) {
         val (input, expected) = example
