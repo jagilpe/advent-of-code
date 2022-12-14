@@ -4,6 +4,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 
+/**
+ * 121 -> too low
+ */
 abstract class BaseTest {
 
     abstract val example: String
