@@ -3,6 +3,7 @@ package com.gilpereda.aoc2022
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
+
 abstract class BaseTest {
 
     abstract val example: String
