@@ -18,8 +18,7 @@ class Day17Test : BaseTest() {
 
     override val result1: String = "3068"
 
-    override val result2: String
-        get() = TODO()
+    override val result2: String = "1514285714288"
 
     override val input: String = "/day17/input"
 
@@ -47,13 +46,13 @@ class Day17Test : BaseTest() {
 
     @ParameterizedTest
     @MethodSource("rocksInitialPosition")
-    fun `should position the rocks correctly`(nextRock: Rock, expected: Point, previous: List<RockPosition>) {
+    fun `should position the rocks correctly`(nextRock: Rock, expected: Point, previous: SqueezedRocks) {
         val game = initialState.copy(
             nextRocks =  listOf(nextRock),
-            rocksPositions = previous
+            squeezedRocks = previous,
         )
 
-        assertThat(game.next().rocksPositions.first()).isEqualTo(nextRock.pos(expected.x, expected.y))
+        assertThat(game.next().movingRock).isEqualTo(nextRock.pos(expected.x, expected.y))
     }
 
     @ParameterizedTest
@@ -62,36 +61,24 @@ class Day17Test : BaseTest() {
         val game = initialState.copy(
             nextMovements = listOf(movement),
             nextRocks =  emptyList(),
-            rocksPositions = listOf(initialPos)
+            movingRock = initialPos,
         )
 
-        assertThat(game.next().rocksPositions.first().point).isEqualTo(expected)
+        assertThat(game.next().movingRock!!.point).isEqualTo(expected)
     }
 
     @ParameterizedTest
     @MethodSource("movementOrchestration")
     fun `should orchestrate the movements`(initial: Game, expected: Game) {
         val actual = initial.next()
-        initial.rocksPositions.dump("initial")
-        expected.rocksPositions.dump("expected")
-        actual.rocksPositions.dump("actual")
         assertThat(actual).isEqualTo(expected)
     }
 
     @ParameterizedTest
     @MethodSource("positionOverlaps")
     fun `should detect an overlap`(one: RockPosition, other: RockPosition, expected: Boolean) {
-        assertThat(one.overlaps(other)).isEqualTo(expected)
+        assertThat(one.overlaps(SqueezedRocks(other.points))).isEqualTo(expected)
     }
-
-    @Test
-    fun testSomething() {
-        generateSequence(initialState) {
-            it.next()
-        }.onEach { it.rocksPositions.dump() }.take(100).count()
-
-    }
-
 
     companion object {
         const val example: String = ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"
@@ -108,42 +95,42 @@ class Day17Test : BaseTest() {
             of(HorizontalLine.pos(0, 0), VerticalLine.pos(6,0), false),
         )
 
-            @JvmStatic
+        @JvmStatic
         fun movements(): Stream<Arguments> = with(initialState) {
             Stream.of(
                 of(
                     1, copy(
                         nextMovements = nextMovements,
                         nextRocks = nextRocks.drop(1),
-                        rocksPositions = listOf(HorizontalLine.pos(2, 3))
+                        movingRock = HorizontalLine.pos(2, 3)
                     )
                 ),
                 of(
                     2, copy(
                         nextMovements = nextMovements.drop(1),
                         nextRocks = nextRocks.drop(1),
-                        rocksPositions = listOf(HorizontalLine.pos(3, 2))
+                        movingRock = HorizontalLine.pos(3, 2)
                     )
                 ),
                 of(
                     3, copy(
                         nextMovements = nextMovements.drop(2),
                         nextRocks = nextRocks.drop(1),
-                        rocksPositions = listOf(HorizontalLine.pos(3, 1))
+                        movingRock = HorizontalLine.pos(3, 1)
                     )
                 ),
                 of(
                     4, copy(
                         nextMovements = nextMovements.drop(3),
                         nextRocks = nextRocks.drop(1),
-                        rocksPositions = listOf(HorizontalLine.pos(3, 0))
+                        movingRock = HorizontalLine.pos(3, 0)
                     )
                 ),
                 of(
                     5, copy(
                         nextMovements = nextMovements.drop(4),
                         nextRocks = nextRocks.drop(1),
-                        rocksPositions = listOf(HorizontalLine.pos(2, 0).stop())
+                        movingRock = HorizontalLine.pos(2, 0).stop()
                     )
                 ),
             )
@@ -152,49 +139,58 @@ class Day17Test : BaseTest() {
         @JvmStatic
         fun movementOrchestration(): Stream<Arguments> = Stream.of(
             testCase {
-                val initialPositions = listOf(HorizontalLine.pos(0, 0).stop())
+                val previousRock = HorizontalLine.pos(0, 0).stop()
                 val initial = copy(
                     nextRocks = listOf(Plus),
-                    rocksPositions = initialPositions
+                    movingRock = previousRock,
+                    squeezedRocks = SqueezedRocks()
                 )
                 val expected = copy(
                     nextRocks = rocksOrder,
-                    rocksPositions = initialPositions + Plus.pos(4)
+                    movingRock = Plus.pos(4),
+                    squeezedRocks = SqueezedRocks(previousRock.points),
+                    stoppedRocks = 1,
                 )
                 initial to expected
             },
             testCase {
                 val initial = copy(
                     nextMovements = listOf(Right),
-                    rocksPositions = listOf(HorizontalLine.pos(0, 2))
+                    squeezedRocks = SqueezedRocks(),
+                    movingRock = HorizontalLine.pos(0, 2)
                 )
                 val expected = copy(
                     nextMovements = movements,
-                    rocksPositions = listOf(HorizontalLine.pos(1, 1))
+                    squeezedRocks = SqueezedRocks(),
+                    movingRock = HorizontalLine.pos(1, 1)
                 )
                 initial to expected
             },
             testCase {
-                val otherRocks = listOf(HorizontalLine.pos(3, 1).stop())
+                val otherRocks = SqueezedRocks(HorizontalLine.pos(3, 1).points)
                 val initial = copy(
                     nextMovements = listOf(Right),
-                    rocksPositions = otherRocks + Plus.pos(0, 1)
+                    squeezedRocks = otherRocks,
+                    movingRock = Plus.pos(0, 1)
                 )
                 val expected = copy(
                     nextMovements = movements,
-                    rocksPositions =  otherRocks + Plus.pos(1, 1).stop()
+                    squeezedRocks = otherRocks,
+                    movingRock = Plus.pos(1, 1).stop()
                 )
                 initial to expected
             },
             testCase {
-                val otherRocks = listOf(HorizontalLine.pos(2, 0).stop())
+                val otherRocks = SqueezedRocks(HorizontalLine.pos(2, 0).points)
                 val initial = copy(
                     nextMovements = listOf(Left),
-                    rocksPositions = otherRocks + Plus.pos(2, 1)
+                    squeezedRocks = otherRocks,
+                    movingRock = Plus.pos(2, 1)
                 )
                 val expected = copy(
                     nextMovements = movements,
-                    rocksPositions =  otherRocks + Plus.pos(1, 1).stop()
+                    squeezedRocks = otherRocks,
+                    movingRock =  Plus.pos(1, 1).stop()
                 )
                 initial to expected
             },
@@ -202,34 +198,34 @@ class Day17Test : BaseTest() {
 
         @JvmStatic
         fun rocksInitialPosition(): Stream<Arguments> = Stream.of(
-            of(HorizontalLine, Point(2, 3), emptyList<RockPosition>()),
-            of(HorizontalLine, Point(2, 4), listOf(HorizontalLine.pos(0, 0).stop())),
-            of(HorizontalLine, Point(2, 5), listOf(HorizontalLine.pos(3, 1).stop())),
-            of(HorizontalLine, Point(2, 6), listOf(HorizontalLine.pos(2, 2).stop())),
-            of(Plus, Point(2, 3), emptyList<RockPosition>()),
-            of(Plus, Point(2, 5), listOf(HorizontalLine.pos(0, 1).stop())),
-            of(InvertedL, Point(2, 3), emptyList<RockPosition>()),
-            of(InvertedL, Point(2, 5), listOf(HorizontalLine.pos(0, 1).stop())),
-            of(VerticalLine, Point(2, 3), emptyList<RockPosition>()),
-            of(VerticalLine, Point(2, 5), listOf(HorizontalLine.pos(0, 1).stop())),
-            of(Square, Point(2, 3), emptyList<RockPosition>()),
-            of(Square, Point(2, 5), listOf(HorizontalLine.pos(0, 1).stop())),
+            of(HorizontalLine, Point(2, 3), SqueezedRocks()),
+            of(HorizontalLine, Point(2, 4), SqueezedRocks(HorizontalLine.pos(0, 0).points)),
+            of(HorizontalLine, Point(2, 5), SqueezedRocks(HorizontalLine.pos(3, 1).points)),
+            of(HorizontalLine, Point(2, 6), SqueezedRocks(HorizontalLine.pos(2, 2).points)),
+            of(Plus, Point(2, 3), SqueezedRocks()),
+            of(Plus, Point(2, 5), SqueezedRocks(HorizontalLine.pos(0, 1).points)),
+            of(InvertedL, Point(2, 3), SqueezedRocks()),
+            of(InvertedL, Point(2, 5), SqueezedRocks(HorizontalLine.pos(0, 1).points)),
+            of(VerticalLine, Point(2, 3), SqueezedRocks()),
+            of(VerticalLine, Point(2, 5), SqueezedRocks(HorizontalLine.pos(0, 1).points)),
+            of(Square, Point(2, 3), SqueezedRocks()),
+            of(Square, Point(2, 5), SqueezedRocks(HorizontalLine.pos(0, 1).points)),
 
-            of(HorizontalLine, Point(2, 6), listOf(Plus.pos(0, 0).stop())),
-            of(HorizontalLine, Point(2, 8), listOf(Plus.pos(0, 2).stop())),
+            of(HorizontalLine, Point(2, 6), SqueezedRocks(Plus.pos(0, 0).points)),
+            of(HorizontalLine, Point(2, 8), SqueezedRocks(Plus.pos(0, 2).points)),
 
-            of(HorizontalLine, Point(2, 6), listOf(InvertedL.pos(0, 0).stop())),
-            of(HorizontalLine, Point(2, 8), listOf(InvertedL.pos(0, 2).stop())),
+            of(HorizontalLine, Point(2, 6), SqueezedRocks(InvertedL.pos(0, 0).points)),
+            of(HorizontalLine, Point(2, 8), SqueezedRocks(InvertedL.pos(0, 2).points)),
 
-            of(HorizontalLine, Point(2, 7), listOf(VerticalLine.pos(0, 0).stop())),
-            of(HorizontalLine, Point(2, 9), listOf(VerticalLine.pos(0, 2).stop())),
+            of(HorizontalLine, Point(2, 7), SqueezedRocks(VerticalLine.pos(0, 0).points)),
+            of(HorizontalLine, Point(2, 9), SqueezedRocks(VerticalLine.pos(0, 2).points)),
 
-            of(HorizontalLine, Point(2, 5), listOf(Square.pos(0, 0).stop())),
-            of(HorizontalLine, Point(2, 7), listOf(Square.pos(0, 2).stop())),
+            of(HorizontalLine, Point(2, 5), SqueezedRocks(Square.pos(0, 0).points)),
+            of(HorizontalLine, Point(2, 7), SqueezedRocks(Square.pos(0, 2).points)),
         )
 
         @JvmStatic
-        fun moveRockHorizontal(): Stream<Arguments> = Stream.of(
+        fun rocksMovements(): Stream<Arguments> = Stream.of(
             of(HorizontalLine.pos(0, 0), Right, Point(1, 0)),
             of(HorizontalLine.pos(1, 0), Right, Point(2, 0)),
             of(HorizontalLine.pos(2, 0), Right, Point(3, 0)),
@@ -254,14 +250,12 @@ class Day17Test : BaseTest() {
             of(InvertedL.pos(1, 0), Right, Point(2, 0)),
             of(InvertedL.pos(2, 0), Right, Point(3, 0)),
             of(InvertedL.pos(3, 0), Right, Point(4, 0)),
-            of(InvertedL.pos(4, 0), Right, Point(5, 0)),
-            of(InvertedL.pos(5, 0), Right, Point(5, 0)),
+            of(InvertedL.pos(4, 0), Right, Point(4, 0)),
             of(InvertedL.pos(0, 0), Left, Point(0, 0)),
             of(InvertedL.pos(1, 0), Left, Point(0, 0)),
             of(InvertedL.pos(2, 0), Left, Point(1, 0)),
             of(InvertedL.pos(3, 0), Left, Point(2, 0)),
             of(InvertedL.pos(4, 0), Left, Point(3, 0)),
-            of(InvertedL.pos(5, 0), Left, Point(4, 0)),
 
             of(VerticalLine.pos(0, 0), Right, Point(1, 0)),
             of(VerticalLine.pos(1, 0), Right, Point(2, 0)),
