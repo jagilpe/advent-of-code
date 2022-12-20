@@ -5,7 +5,10 @@ import com.gilpereda.aoc2022.Executable
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.Arguments.of
 import org.junit.jupiter.params.provider.MethodSource
+import java.util.stream.Stream
 
 class Day16Test : BaseTest() {
     override val example: String = """Valve AA has flow rate=0; tunnels lead to valves DD, II, BB
@@ -46,6 +49,18 @@ Valve JJ has flow rate=21; tunnel leads to valve II"""
         )
 
         assertThat(valves).isEqualTo(expected)
+    }
+
+    @Test
+    fun `sets with the same elements should be equal`() {
+        val valveA = Valve("AA", 0, setOf("DD", "II", "BB"))
+        val valveE = Valve("EE", 3, setOf("FF", "DD"))
+
+        val one = setOf(GoToValve(valveA), GoToValve(valveE))
+        val other = setOf(GoToValve(valveE), GoToValve(valveA))
+
+        assertThat(one).isEqualTo(other)
+        assertThat(setOf(one, other)).hasSize(1)
     }
 
 }
