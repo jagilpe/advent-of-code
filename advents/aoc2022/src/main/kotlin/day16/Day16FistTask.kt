@@ -86,12 +86,12 @@ private data class Path(
 data class TunnelSystem(
     private val valves: List<Valve>,
 ) {
-    val openableValves: Set<Valve>
-        get() = valves.filter { it.canOpen }.toSet()
+    val openableValves: List<Valve>
+        get() = valves.filter { it.canOpen }
 
     val valvesWithoutFlow: Set<Valve> = valves.filter { it.flowRate == 0 }.toSet()
 
-    val distances: Map<Valve, Map<Valve, Int>> by lazy(::calculateDistances)
+    private val distances: Map<Valve, Map<Valve, Int>> by lazy(::calculateDistances)
 
     fun maxRemainingFlow(openValves: Set<Valve>): Int =
         remainingValves(openValves).sumOf { it.flowRate }
@@ -102,7 +102,8 @@ data class TunnelSystem(
     fun findValve(id: String): Valve = valves.first { it.id == id }
 
     fun distanceBetween(one: Valve, other: Valve): Int =
-        distances.getOrDefault(one, mapOf()).getOrDefault(other, Int.MAX_VALUE)
+        if (one == other) 0
+        else distances.getOrDefault(one, mapOf()).getOrDefault(other, Int.MAX_VALUE)
 
     private fun calculateDistances(): Map<Valve, Map<Valve, Int>> =
         valves.associateWith { calculateDistances(it) }
