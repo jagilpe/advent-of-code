@@ -1,5 +1,10 @@
 package com.gilpereda.aoc2022.day19
 
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.asFlow
+import java.time.LocalDateTime
+import java.util.concurrent.Executors
+
 
 fun firstTask(input: Sequence<String>): String {
     return input.parsed()
@@ -7,11 +12,19 @@ fun firstTask(input: Sequence<String>): String {
         .toString()
 }
 
-fun secondTask(input: Sequence<String>): String =
-    input.parsed()
-        .take(3)
-        .map { it.maxGeode(30) }
-        .reduce { one, other -> one * other }.toString()
+fun secondTask(input: Sequence<String>): String {
+    val threadPool = newFixedThreadPoolContext(4, "myPool")
+
+    return runBlocking {
+        val (first, second, third) = input.parsed().toList()
+
+        val firstDeferred = async(threadPool) { first.maxGeode(32) }
+        val secondDeferred = async(threadPool) { second.maxGeode(32) }
+        val thirdDeferred = async(threadPool) { third.maxGeode(32) }
+
+        firstDeferred.await() * secondDeferred.await() * thirdDeferred.await()
+    }.toString()
+}
 
 private val PARSE_REGEX =
     "Blueprint ([0-9]+): Each ore robot costs ([0-9]+) ore. Each clay robot costs ([0-9]+) ore. Each obsidian robot costs ([0-9]+) ore and ([0-9]+) clay. Each geode robot costs ([0-9]+) ore and ([0-9]+) obsidian.".toRegex()
@@ -30,11 +43,9 @@ fun Sequence<String>.parsed(): Sequence<BluePrint> =
     }
 
 fun BluePrint.maxGeode(limit: Int): Int {
-    var iter = 0L
-    tailrec fun go(current: Process, currentBest: Process?, open: MutableCollection<Process>): Int {
-        iter += 1
-        if (iter % 1_000_000_000 == 0L) {
-            println("blueprint: ${id}, iter: $iter, open paths: ${open.size}, current winner: ${currentBest?.geode ?: 0}, current quality: ${current.geode}")
+    tailrec fun go(current: Process, currentBest: Process?, open: MutableCollection<Process>, iter: Long): Int {
+        if (iter % 500_000_000 == 0L) {
+            println("${LocalDateTime.now()}: blueprint: ${id}, iter: $iter, open paths: ${open.size}, current winner: ${currentBest?.geode ?: 0}, current quality: ${current.geode}")
         }
         val nextBest = if (current.finished && (currentBest == null || current.geode > currentBest.geode)) {
             open.removeIf { it cannotWin current }
@@ -50,11 +61,11 @@ fun BluePrint.maxGeode(limit: Int): Int {
                 println("found for $id : ${currentBest?.geode}")
                 currentBest?.geode ?: throw Exception("Could not find best process")
             }
-            else -> go(nextCandidate, nextBest, open)
+            else -> go(nextCandidate, nextBest, open, iter + 1)
         }
     }
 
-    return go(Process(bluePrint = this, limit = limit), null, mutableListOf())
+    return go(Process(bluePrint = this, limit = limit), null, mutableListOf(), 0)
 }
 
 fun BluePrint.quality(limit: Int): Int = maxGeode(limit) * id

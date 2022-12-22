@@ -7,6 +7,10 @@ import org.junit.jupiter.api.Test
 
 /**
  * 958 -> too low
+ *
+ * 4508 -> too low 2nd part
+ * 5152 -> too low 2nd part
+ * 5888 -> too low 2nd part
  */
 class Day19Test : BaseTest() {
     override val example: String = """Blueprint 1: Each ore robot costs 4 ore. Each clay robot costs 2 ore. Each obsidian robot costs 3 ore and 14 clay. Each geode robot costs 2 ore and 7 obsidian.
@@ -14,8 +18,7 @@ Blueprint 2: Each ore robot costs 2 ore. Each clay robot costs 3 ore. Each obsid
 
     override val result1: String = "33"
 
-    override val result2: String
-        get() = TODO()
+    override val result2: String = "62"
 
     override val input: String = "/day19/input"
 
