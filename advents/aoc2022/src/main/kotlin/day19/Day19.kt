@@ -1,10 +1,11 @@
 package com.gilpereda.aoc2022.day19
 
 
-fun firstTask(input: Sequence<String>): String =
-    input.parsed()
+fun firstTask(input: Sequence<String>): String {
+    return input.parsed()
         .sumOf { it.quality(24) }
         .toString()
+}
 
 fun secondTask(input: Sequence<String>): String = TODO()
 
@@ -24,126 +25,147 @@ fun Sequence<String>.parsed(): Sequence<BluePrint> =
         } ?: throw Exception("Could not parse $line")
     }
 
-fun BluePrint.quality(minutes: Int): Int {
-    tailrec fun go(step: Step, round: Long): Int {
-        if (round % 100_000_000L == 0L) {
-            println("round: $round, open paths: ${step.open.size}")
+fun BluePrint.quality(limit: Int): Int {
+    var iter = 0L
+    tailrec fun go(current: Process, currentBest: Process?, open: MutableCollection<Process>): Int {
+        iter += 1
+        if (iter % 1_000_000_000 == 0L) {
+            println("blueprint: ${id}, iter: $iter, open paths: ${open.size}, current winner: ${currentBest?.quality ?: 0}, current quality: ${current.quality}")
         }
-        return if (!step.current.finished) {
-            val next = step.current.nextStates()
-            go(step.copy(current = next.first(), open = next.drop(1) + step.open), round + 1)
+        val nextBest = if (current.finished && (currentBest == null || current.quality > currentBest.quality)) {
+            open.removeIf { it cannotWin current }
+            current
         } else {
-            if (step.open.isNotEmpty()) {
-                val bestPath = listOf(step.current, step.acc).maxBy { it.quality }
-                val next = step.open.first()
-                if (next canWin bestPath) {
-                    go(
-                        Step(
-                            acc = bestPath,
-                            current = next,
-                            open = step.open.drop(1),
-                        ),
-                        round + 1
-                    )
-                } else {
-                    go(
-                        step.copy(open = step.open.drop(1)),
-                        round + 1
-                    )
-                }
-            } else {
-                step.acc.quality
+            currentBest
+        }
+
+        open.addAll(newCandidates(current, currentBest))
+
+        return when (val nextCandidate = open.maxOrNull()?.also { open.remove(it) }) {
+            null -> {
+                println("found for $id : ${currentBest?.quality}")
+                currentBest?.quality ?: throw Exception("Could not find best process")
             }
+            else -> go(nextCandidate, nextBest, open)
         }
     }
 
-    return go(Step(State(this, limit = minutes)), 0)
+    return go(Process(bluePrint = this, limit = limit), null, mutableListOf())
 }
 
-data class Step(
-    val current: State,
-    val acc: State = current,
-    val open: List<State> = emptyList()
-)
+private fun newCandidates(current: Process, currentBest: Process?): List<Process> =
+    if (current.finished || current cannotWin currentBest) {
+        emptyList()
+    } else {
+        current.nextCandidates()
+    }
 
-data class State(
+data class Process(
     val bluePrint: BluePrint,
     val resources: Resources = Resources(),
-    val robots: Resources = Resources(ore = 1,),
+    val robots: Resources = Resources(ore = 1),
     val resourceEvolution: List<MinuteLog> = emptyList(),
+    val firstGeodeRobotAt: Int? = null,
     val time: Int = 1,
-    val limit: Int = 24,
-) {
+    val limit: Int,
+) : Comparable<Process> {
     val finished: Boolean = time > limit
 
-    infix fun canWin(other: State): Boolean =
-//        true
-        (resources.geode + limit - time) > other.resources.geode
+    // TODO Implement correctly
+    infix fun cannotWin(other: Process?): Boolean =
+        robots.geode == 0 && time > (other?.firstGeodeRobotAt ?: limit)
 
     val quality: Int = bluePrint.id * resources.geode
 
-    fun nextStates(): List<State> {
-        return listOfNotNull(
-            buildNothing().updateLog(time),
-//            buildOneRobot()?.updateLog(time),
-            buildOreRobot()?.updateLog(time),
-            buildClayRobot()?.updateLog(time),
-            buildObsidianRobot()?.updateLog(time),
-            buildGeodeRobot()?.updateLog(time),
-        )
+    fun nextCandidates(): List<Process> {
+        return listOf(
+            Recollect(),
+            BuildOreRobot(),
+            BuildClayRobot(),
+            BuildObsidianRobot(),
+            BuildGeodeRobot(),
+        ).filter { it.resourcesReach }
+            .sortedDescending()
+            .map { it.next() }
     }
 
-    private fun buildOneRobot(): State? =
+    override fun compareTo(other: Process): Int =
         when {
-            canBuildGeodeRobot -> buildGeodeRobot()
-            canBuildObsidianRobot -> buildObsidianRobot()
-            canBuildClayRobot -> buildClayRobot()
-            canBuildOreRobot -> buildOreRobot()
-            else -> null
+            quality > other.quality -> 1
+            quality < other.quality -> -1
+            else -> when (val robotComp = robots.compareTo(other.robots)) {
+                0 -> resources.compareTo(other.resources)
+                else -> robotComp
+            }
         }
 
-    private val canBuildOreRobot: Boolean = resources covers bluePrint.oreRobot
+    interface Operation : Comparable<Operation> {
+        fun next(): Process
+        val resourcesReach: Boolean
+        val priority: Int
 
-    private val canBuildClayRobot: Boolean = resources covers bluePrint.clayRobot
+        override fun compareTo(other: Operation): Int =
+            priority.compareTo(other.priority)
+    }
 
-    private val canBuildObsidianRobot: Boolean = resources covers bluePrint.obsidianRobot
+    inner class Recollect : Operation {
+        override fun next(): Process =
+            copy(
+                resources = resources + robots,
+                time = time + 1,
+            )
 
-    private val canBuildGeodeRobot: Boolean = resources covers bluePrint.geodeRobot
+        override val resourcesReach: Boolean
+            get() = true
+        override val priority: Int = 0
+    }
 
-    private fun buildNothing(): State =
-        copy(
-            resources = resources + robots,
-            time = time + 1,
-        )
+    inner class BuildOreRobot : Operation {
+        private val basePriority: Int = 10
+        override val priority: Int = 10
+        override fun next(): Process =
+            copy(
+                resources = resources + robots - bluePrint.oreRobot,
+                robots = robots.copy(ore = robots.ore + 1),
+                time = time + 1
+            )
 
-    private fun buildOreRobot(): State? =
-        if (canBuildOreRobot) copy(
-            resources = resources + robots - bluePrint.oreRobot,
-            robots = robots.copy(ore = robots.ore + 1),
-            time = time + 1
-        ) else null
+        override val resourcesReach: Boolean = resources covers bluePrint.oreRobot
+    }
 
-    private fun buildClayRobot(): State? =
-        if (canBuildClayRobot) copy(
-            resources = resources + robots - bluePrint.clayRobot,
-            robots = robots.copy(clay = robots.clay + 1),
-            time = time + 1
-        ) else null
+    inner class BuildClayRobot : Operation {
+        override val priority: Int = 20
+        override fun next(): Process =
+            copy(
+                resources = resources + robots - bluePrint.clayRobot,
+                robots = robots.copy(clay = robots.clay + 1),
+                time = time + 1
+            )
+        override val resourcesReach: Boolean = resources covers bluePrint.clayRobot
+    }
 
-    private fun buildObsidianRobot(): State? =
-        if (canBuildObsidianRobot) copy(
-            resources = resources + robots - bluePrint.obsidianRobot,
-            robots = robots.copy(obsidian = robots.obsidian + 1),
-            time = time + 1
-        ) else null
+    inner class BuildObsidianRobot : Operation {
+        override val priority: Int = 30
+        override fun next(): Process =
+            copy(
+                resources = resources + robots - bluePrint.obsidianRobot,
+                robots = robots.copy(obsidian = robots.obsidian + 1),
+                time = time + 1
+            )
+        override val resourcesReach: Boolean = resources covers bluePrint.obsidianRobot
+    }
 
-    private fun buildGeodeRobot(): State? =
-        if (canBuildGeodeRobot) copy(
-            resources = resources + robots - bluePrint.geodeRobot,
-            robots = robots.copy(geode = robots.geode + 1),
-            time = time + 1
-        ) else null
-
+    inner class BuildGeodeRobot : Operation {
+        override val priority: Int = 40
+        override fun next(): Process =
+            copy(
+                resources = resources + robots - bluePrint.geodeRobot,
+                robots = robots.copy(geode = robots.geode + 1),
+                time = time + 1,
+                firstGeodeRobotAt = time
+            )
+        override val resourcesReach: Boolean = resources covers bluePrint.geodeRobot
+    }
 }
 
 data class MinuteLog(
@@ -152,7 +174,7 @@ data class MinuteLog(
     val resources: Resources,
 )
 
-fun State.updateLog(time: Int): State =
+fun Process.updateLog(time: Int): Process =
     copy(
         resourceEvolution = resourceEvolution + MinuteLog(time = time, robots = robots, resources = resources)
     )
@@ -170,7 +192,7 @@ data class Resources(
     val clay: Int = 0,
     val obsidian: Int = 0,
     val geode: Int = 0,
-) {
+) : Comparable<Resources> {
     infix fun covers(other: Resources): Boolean =
         ore >= other.ore && clay >= other.clay && obsidian >= other.obsidian && geode >= other.geode
 
@@ -189,4 +211,24 @@ data class Resources(
             obsidian = obsidian + other.obsidian,
             geode = geode + other.geode,
         )
+
+    override fun compareTo(other: Resources): Int =
+        when {
+            geode > other.geode -> 1
+            geode < other.geode -> -1
+            else -> when {
+                obsidian > other.obsidian -> 1
+                obsidian < other.obsidian -> -1
+                else -> when {
+                    clay > other.clay -> 1
+                    clay < other.clay -> -1
+                    else -> when {
+                        ore > other.ore -> 1
+                        ore < other.ore -> -1
+                        else -> 0
+                    }
+                }
+            }
+
+        }
 }
