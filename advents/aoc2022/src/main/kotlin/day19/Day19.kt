@@ -7,7 +7,11 @@ fun firstTask(input: Sequence<String>): String {
         .toString()
 }
 
-fun secondTask(input: Sequence<String>): String = TODO()
+fun secondTask(input: Sequence<String>): String =
+    input.parsed()
+        .take(3)
+        .map { it.maxGeode(30) }
+        .reduce { one, other -> one * other }.toString()
 
 private val PARSE_REGEX =
     "Blueprint ([0-9]+): Each ore robot costs ([0-9]+) ore. Each clay robot costs ([0-9]+) ore. Each obsidian robot costs ([0-9]+) ore and ([0-9]+) clay. Each geode robot costs ([0-9]+) ore and ([0-9]+) obsidian.".toRegex()
@@ -25,14 +29,14 @@ fun Sequence<String>.parsed(): Sequence<BluePrint> =
         } ?: throw Exception("Could not parse $line")
     }
 
-fun BluePrint.quality(limit: Int): Int {
+fun BluePrint.maxGeode(limit: Int): Int {
     var iter = 0L
     tailrec fun go(current: Process, currentBest: Process?, open: MutableCollection<Process>): Int {
         iter += 1
         if (iter % 1_000_000_000 == 0L) {
-            println("blueprint: ${id}, iter: $iter, open paths: ${open.size}, current winner: ${currentBest?.quality ?: 0}, current quality: ${current.quality}")
+            println("blueprint: ${id}, iter: $iter, open paths: ${open.size}, current winner: ${currentBest?.geode ?: 0}, current quality: ${current.geode}")
         }
-        val nextBest = if (current.finished && (currentBest == null || current.quality > currentBest.quality)) {
+        val nextBest = if (current.finished && (currentBest == null || current.geode > currentBest.geode)) {
             open.removeIf { it cannotWin current }
             current
         } else {
@@ -43,8 +47,8 @@ fun BluePrint.quality(limit: Int): Int {
 
         return when (val nextCandidate = open.maxOrNull()?.also { open.remove(it) }) {
             null -> {
-                println("found for $id : ${currentBest?.quality}")
-                currentBest?.quality ?: throw Exception("Could not find best process")
+                println("found for $id : ${currentBest?.geode}")
+                currentBest?.geode ?: throw Exception("Could not find best process")
             }
             else -> go(nextCandidate, nextBest, open)
         }
@@ -52,6 +56,8 @@ fun BluePrint.quality(limit: Int): Int {
 
     return go(Process(bluePrint = this, limit = limit), null, mutableListOf())
 }
+
+fun BluePrint.quality(limit: Int): Int = maxGeode(limit) * id
 
 private fun newCandidates(current: Process, currentBest: Process?): List<Process> =
     if (current.finished || current cannotWin currentBest) {
@@ -71,11 +77,10 @@ data class Process(
 ) : Comparable<Process> {
     val finished: Boolean = time > limit
 
-    // TODO Implement correctly
     infix fun cannotWin(other: Process?): Boolean =
         robots.geode == 0 && time > (other?.firstGeodeRobotAt ?: limit)
 
-    val quality: Int = bluePrint.id * resources.geode
+    val geode: Int = resources.geode
 
     fun nextCandidates(): List<Process> {
         return listOf(
@@ -91,8 +96,8 @@ data class Process(
 
     override fun compareTo(other: Process): Int =
         when {
-            quality > other.quality -> 1
-            quality < other.quality -> -1
+            geode > other.geode -> 1
+            geode < other.geode -> -1
             else -> when (val robotComp = robots.compareTo(other.robots)) {
                 0 -> resources.compareTo(other.resources)
                 else -> robotComp
