@@ -13,17 +13,18 @@ fun firstTask(input: Sequence<String>): String {
 }
 
 fun secondTask(input: Sequence<String>): String {
-    val threadPool = newFixedThreadPoolContext(4, "myPool")
+    return input.parsed().toList()[1].maxGeode(32).toString()
+//    val threadPool = newFixedThreadPoolContext(4, "myPool")
 
-    return runBlocking {
-        val (first, second, third) = input.parsed().toList()
-
-        val firstDeferred = async(threadPool) { first.maxGeode(32) }
-        val secondDeferred = async(threadPool) { second.maxGeode(32) }
-        val thirdDeferred = async(threadPool) { third.maxGeode(32) }
-
-        firstDeferred.await() * secondDeferred.await() * thirdDeferred.await()
-    }.toString()
+//    return runBlocking {
+//        val (first, second, third) = input.parsed().toList()
+//
+//        val firstDeferred = async(threadPool) { first.maxGeode(32) }
+//        val secondDeferred = async(threadPool) { second.maxGeode(32) }
+//        val thirdDeferred = async(threadPool) { third.maxGeode(32) }
+//
+//        firstDeferred.await() * secondDeferred.await() * thirdDeferred.await()
+//    }.toString()
 }
 
 private val PARSE_REGEX =
