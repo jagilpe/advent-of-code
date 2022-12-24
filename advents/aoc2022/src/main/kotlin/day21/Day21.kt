@@ -5,8 +5,8 @@ import com.gilpereda.aoc2022.day21.Tree.Companion.Node
 import java.math.BigDecimal
 import kotlin.properties.Delegates
 
-private const val ROOT = "root"
-private const val HUMN = "humn"
+const val ROOT = "root"
+const val HUMN = "humn"
 
 fun firstTask(input: Sequence<String>): String {
     val monkeys = input.parsed()
@@ -25,45 +25,34 @@ fun firstTask(input: Sequence<String>): String {
 }
 
 fun firstTask2(input: Sequence<String>): String {
-    val monkeyFinder: MonkeyFinder = input.parseTree()
-        .map(Tree::toMonkey)
-        .let { monkeys ->
-            val monkeyFinder = MonkeyFinder(monkeys)
-            monkeys.forEach { it.addMonkeyFinder(monkeyFinder) }
-            monkeyFinder
-        }
-
-    val root = monkeyFinder.find(ROOT)
-
-    var result by Delegates.notNull<BigDecimal>()
-
-    root.addSubscriber {
-        result = it
-    }
-
-    return result.toString()
+    return calculate(input.parseTree().map(Tree::toMonkey)).first[ROOT].toString()
 }
 
 fun secondTask(input: Sequence<String>): String {
-    val monkeyFinder: MonkeyFinder = input.parseTree()
-        .traverse(HUMN)
-        .map(Tree::toMonkey)
-        .let { monkeys ->
-            val monkeyFinder = MonkeyFinder(monkeys)
-            monkeys.forEach { it.addMonkeyFinder(monkeyFinder) }
-            monkeyFinder
-        }
+    val monkeyTree = input.parseTree()
+    val treeFinder = TreeFinder(monkeyTree)
+    val (firstResults) = calculate(monkeyTree.map(Tree::toMonkey))
 
-    val humn = monkeyFinder.find(HUMN)
 
-    var result by Delegates.notNull<BigDecimal>()
+    val rootDependency = (treeFinder.find(ROOT) as Node).dependenciesOf(HUMN, treeFinder)!!.notDependent
+    val expectedRootValue = firstResults[rootDependency]!! * BigDecimal(2)
 
-    humn.addSubscriber {
-        result = it
-    }
+    val (secondResults) = calculate(monkeyTree.traverse(HUMN, expectedRootValue).map(Tree::toMonkey))
 
-    return result.toString()
+    return secondResults[HUMN].toString()
 }
+
+fun calculate(monkeys: List<Monkey>): Pair<Map<String, BigDecimal>, MonkeyFinder> {
+    val result = mutableMapOf<String, BigDecimal>()
+
+    val monkeyFinder = MonkeyFinder(monkeys)
+    monkeys.forEach { it.addMonkeyFinder(monkeyFinder) }
+
+    monkeys.forEach { monkey -> monkey.addSubscriber { value -> result[monkey.name] = value } }
+
+    return result to monkeyFinder
+}
+
 
 fun secondTask2(input: Sequence<String>): String {
     val parseTree = input.parseTree()
@@ -133,17 +122,16 @@ fun Sequence<String>.parseTree(): List<Tree> =
             ?: throw Exception("Could not parse line $it")
     }.toList()
 
-fun List<Tree>.traverse(dependency: String): List<Tree> {
+fun List<Tree>.traverse(dependency: String, rootValue: BigDecimal): List<Tree> {
     val treeFinder = TreeFinder(this)
 
     return flatMap { monkey ->
         if (monkey.name == ROOT) {
             val (dependent, notDependent) = (monkey as Node).dependenciesOf(dependency, treeFinder)!!
-            listOf(Leaf(ROOT, BigDecimal(0)), Node(dependent, Sum, ROOT, notDependent))
+            listOf(Leaf(ROOT, rootValue), Node(dependent, Subtract, ROOT, notDependent))
         } else if (monkey.isDependentOf(dependency, treeFinder)) {
             if (monkey is Node) {
-                val (dependent, notDependent) = monkey.dependenciesOf(dependency, treeFinder)!!
-                listOf(Node(dependent, monkey.op.traversed, monkey.name, notDependent))
+                monkey.traverse(dependency, treeFinder)
             } else {
                 // This is the "humn" monkey
                 emptyList()
@@ -194,8 +182,20 @@ sealed interface Tree {
         ) : Tree {
             override fun toMonkey(): Monkey = CalculatingMonkey(name, op, one, other)
 
-            override fun isDependentOf(dependence: String, treeFinder: TreeFinder): Boolean =
-                one.isDependentOf(dependence, treeFinder) || other.isDependentOf(dependence, treeFinder)
+            override fun isDependentOf(dependency: String, treeFinder: TreeFinder): Boolean =
+                one.isDependentOf(dependency, treeFinder) || other.isDependentOf(dependency, treeFinder)
+
+            fun traverse(dependency: String, treeFinder: TreeFinder): List<Node> {
+                val (dependent, notDependent) = dependenciesOf(dependency, treeFinder)!!
+                return when(op) {
+                    Sum, Multiply -> listOf(Node(dependent, op.traversed, name, notDependent))
+                    Divide, Subtract -> when {
+                        one.isDependentOf(dependency, treeFinder) -> listOf(Node(dependent, op.traversed, name, notDependent))
+                        else -> listOf(Node(dependent, op, notDependent, name))
+                    }
+                    else -> emptyList()
+                }
+            }
 
             fun dependenciesOf(dependence: String, treeFinder: TreeFinder): Dependence? =
                 when {
@@ -247,13 +247,13 @@ data class YellingMonkey(
 class CustomYellingMonkey(
     override val name: String,
 ) : Monkey {
-    lateinit var subscriber: Subscriber
+    private val subscribers: MutableList<Subscriber> = mutableListOf()
     fun update(value: BigDecimal) {
-        subscriber.update(value)
+        subscribers.forEach { it.update(value) }
     }
 
     override fun addSubscriber(subscriber: Subscriber) {
-        this.subscriber = subscriber
+        this.subscribers.add(subscriber)
     }
 
     override fun addMonkeyFinder(monkeyFinder: MonkeyFinder) = this
@@ -271,10 +271,10 @@ data class CalculatingMonkey(
     private lateinit var otherMonkey: Monkey
     private var operand1: BigDecimal? = null
     private var operand2: BigDecimal? = null
-    private var subscriber: Subscriber? = null
+    private val subscribers: MutableList<Subscriber> = mutableListOf()
 
     override fun addSubscriber(subscriber: Subscriber) {
-        this.subscriber = subscriber
+        this.subscribers.add(subscriber)
         updateValue()
     }
 
@@ -289,11 +289,16 @@ data class CalculatingMonkey(
     override fun dependenciesWith(monkey: String): Int =
         oneMonkey.dependenciesWith(monkey) + otherMonkey.dependenciesWith(monkey)
 
+    fun dependentWith(monkey: String): Monkey =
+        listOf(oneMonkey, otherMonkey).first { it.dependenciesWith(monkey) > 0 }
+
     private fun updateValue() {
         operand1?.let { a ->
             operand2?.let { b -> operation.yield(a, b) }
         }
-            ?.let { this.subscriber?.update(it) }
+            ?.let { value ->
+                this.subscribers.forEach { it.update(value) }
+            }
     }
 
     private fun addOne(monkey: Monkey) {

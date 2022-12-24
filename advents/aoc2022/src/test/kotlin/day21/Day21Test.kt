@@ -4,6 +4,7 @@ import com.gilpereda.aoc2022.BaseTest
 import com.gilpereda.aoc2022.Executable
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 
 /**
  * 8506900824105 -> too high
@@ -62,5 +63,40 @@ hmdt: 32"""
 //        )
 //        assertThat(actual).isEqualTo(expected)
 //    }
+
+    @Test
+    fun `the results should match`() {
+        val monkeyTree = inputSequence.parseTree()
+        val (firstResults, monkeyFinder) = calculate(monkeyTree.map(Tree::toMonkey))
+
+        val expectedRootValue = firstResults[ROOT]!!
+
+        val (secondResults) = calculate(monkeyTree.traverse(HUMN, expectedRootValue).map(Tree::toMonkey))
+
+        val results = followResults(monkeyFinder, firstResults, secondResults)
+
+        assertThat(results.filter { (_, value) -> value.first != value.second }).isEmpty()
+    }
+
+    private fun followResults(
+        monkeyFinder: MonkeyFinder,
+        firstResults: Map<String, BigDecimal>,
+        secondResults: Map<String, BigDecimal>
+    ): Map<Monkey, Pair<BigDecimal, BigDecimal>> {
+        tailrec fun go(
+            monkey: Monkey,
+            acc: Map<Monkey, Pair<BigDecimal, BigDecimal>>
+        ): Map<Monkey, Pair<BigDecimal, BigDecimal>> =
+            when (monkey) {
+                is YellingMonkey -> acc + mapOf(monkey to Pair(firstResults[monkey.name]!!, secondResults[monkey.name]!!))
+                is CustomYellingMonkey -> throw Exception("illegal type CustomYellingMonkey")
+                is CalculatingMonkey -> {
+                    val next = monkey.dependentWith(HUMN)
+                    go(next, acc + mapOf(monkey to Pair(firstResults[monkey.name]!!, secondResults[monkey.name]!!)))
+                }
+            }
+
+        return go(monkeyFinder.find(ROOT), mapOf())
+    }
 
 }
