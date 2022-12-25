@@ -68,7 +68,7 @@ data class Route(
 
     fun findBestRoute(): Route {
         var lastStart = System.currentTimeMillis()
-        tailrec fun go(current: Route, bestRoute: Route?, open: MutableList<Route>, iter: Int): Route {
+        tailrec fun go(current: Route, bestRoute: Route?, open: List<Route>, iter: Int): Route {
             if (iter % 10_000 == 0) {
                 val ellapsed = System.currentTimeMillis() - lastStart
                 println("${LocalDateTime.now()} - iter: $iter, current: ${current.length}, best: ${bestRoute?.length ?: 0}, open: ${open.size}, in: $ellapsed")
@@ -79,35 +79,31 @@ data class Route(
                 if (current wins bestRoute)
                     current.also { println(current.path) }
                 else bestRoute
-            if (!current.finished) {
-                open.addAll(current.nextRoutes(bestRoute))
-            } else {
-                open.prune(bestRoute)
-            }
+            val nextOpen = if (!current.finished) (open + current.nextRoutes(nextBest)).sorted() else open.prune(bestRoute, nextBest)
 
-            return if (open.isNotEmpty()) {
-                val next = open.minBy { it.distanceToEnd }
-                open.remove(next)
-                go(next, nextBest, open, iter + 1)
+            return if (nextOpen.isNotEmpty()) {
+                go(nextOpen.first(), nextBest, nextOpen.drop(1), iter + 1)
             } else {
                 println("Found in $iter iterations")
                 nextBest!!
             }
         }
 
-        return go(this, null, mutableListOf(), 1)
+        return go(this, null, emptyList(), 1)
     }
 
-    private fun MutableList<Route>.prune(bestRoute: Route?) {
-        forEach { route -> if (route canNotWin bestRoute) remove(route) }
-    }
+    private fun List<Route>.prune(oldBest: Route?, newBest: Route?): List<Route> =
+        if (oldBest != newBest) {
+            filter { newBest == null || it canWin newBest }
+        } else {
+            this
+        }
 
     override fun compareTo(other: Route): Int =
-        potentialFinalLength.compareTo(other.potentialFinalLength)
-//        when (val dist = distanceToEnd.compareTo(other.distanceToEnd)) {
-//            0 -> length.compareTo(other.length)
-//            else -> dist
-//        }
+        when (val dist = distanceToEnd.compareTo(other.distanceToEnd)) {
+            0 -> length.compareTo(other.length)
+            else -> dist
+        }
 
     private fun nextRoutes(bestRoute: Route?): List<Route> {
         val nextMaze = maze.next
