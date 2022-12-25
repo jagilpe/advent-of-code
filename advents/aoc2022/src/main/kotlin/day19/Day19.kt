@@ -1,9 +1,6 @@
 package com.gilpereda.aoc2022.day19
 
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.asFlow
 import java.time.LocalDateTime
-import java.util.concurrent.Executors
 
 
 fun firstTask(input: Sequence<String>): String {

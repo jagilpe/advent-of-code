@@ -17,7 +17,7 @@ abstract class BaseTest {
     abstract val run1: Executable
     abstract val run2: Executable
 
-    private val inputSequence: Sequence<String>
+    protected val inputSequence: Sequence<String>
         get() =
             BaseTest::class.java.getResourceAsStream(input)!!.bufferedReader().lineSequence()
 

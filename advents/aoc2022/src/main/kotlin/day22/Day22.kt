@@ -1,14 +1,22 @@
 package com.gilpereda.aoc2022.day22
 
-import com.gilpereda.aoc2022.day05.start
 import com.gilpereda.aoc2022.day22.Orientation.*
 import kotlin.math.absoluteValue
 
-fun firstTask(input: Sequence<String>): String = TODO()
+fun firstTask(input: Sequence<String>): String {
+    val (maze, movements) = input.toList().parsed()
 
-fun secondTask(input: Sequence<String>): String = TODO()
+    val state = movements
+        .fold(State.init(maze)) { acc, movement ->
+        acc.next(movement)
+    }
+    println(state)
+    return state.result.toString()
+}
 
-fun Sequence<String>.parsed(): Pair<Maze, List<Movement>> {
+
+
+fun List<String>.parsed(): Pair<Maze, List<Movement>> {
     val (maze, movements) = joinToString("\n").split("\n\n")
     return Pair(parseMaze(maze), parseMovements(movements.split("\n").first()))
 }
@@ -33,18 +41,18 @@ private fun parseMazeLine(line: String): Line =
         }
     }.copy(end = line.length - 1)
 
-private val List<String>.traversed: List<String>
+val List<String>.traversed: List<String>
     get() {
         val width = maxOf { it.length }
         return map { it.fillWithWhiteSpace(width) }
             .fold(List(width) { "" }) { acc, next ->
                 acc.zip(next.toList())
                     .map { (one, other) -> one + other }
-            }.map { it.trimEnd() }
+            }.map { it.trimEnd() }.filter { it.isNotBlank() }
     }
 
 private fun String.fillWithWhiteSpace(length: Int): String =
-    this + List(length - this.length) { ' ' }
+    this + List(length - this.length) { ' ' }.joinToString("")
 
 
 private fun parseMovements(line: String): List<Movement> {
@@ -65,20 +73,36 @@ private val String?.toMovement: List<Movement>
 data class Maze(
     val rows: List<Line>,
     val columns: List<Line>,
-)
+) {
+    override fun toString(): String = rows.joinToString("\n")
+}
 
 data class State(
     val maze: Maze,
     val x: Int,
     val y: Int,
-    val orientation: Orientation
+    val orientation: Orientation,
+    val path: Map<Position, Orientation> = mapOf(Position(x, y) to orientation),
 ) {
-    val row = maze.rows[y]
-    val column = maze.columns[x]
+    private val row = maze.rows[y]
+    private val column = maze.columns[x]
+
+    override fun toString(): String =
+        maze.rows.mapIndexed { y, row ->
+            row.toString().mapIndexed { x, cell ->
+                path[Position(x, y)] ?: cell
+            }.joinToString("")
+        }.joinToString("\n")
+
+    val result: Int by lazy {
+        1000 * (y + 1) + 4 * (x + 1) + orientation.value
+    }
+
+    private val currentPosition: Position = Position(x, y)
 
     fun next(movement: Movement): State =
         when (movement) {
-            is Turn -> copy(orientation = movement.next(orientation))
+            is Turn -> movement.next(orientation).let { copy(orientation = it, path = path + mapOf(currentPosition to it)) }
             is Go -> when (orientation.direction) {
                 Direction.VERTICAL -> moveVertically(orientation.steps(movement))
                 Direction.HORIZONTAL -> moveHorizontally(orientation.steps(movement))
@@ -86,11 +110,51 @@ data class State(
         }
 
     private fun moveVertically(steps: Int): State =
-        copy(y = (y + steps).toIndex(column.end + 1))
+        move(y, steps, column) { newY, passed -> copy(y = newY, path = path + passed.associate { Position(x = x, y = it) to orientation }.toMap()) }
 
     private fun moveHorizontally(steps: Int): State =
-        copy(x = (x + steps).toIndex(row.end + 1))
+        move(x, steps, row) { newX, passed -> copy(x = newX, path = path + passed.associate { Position(x = it, y = y) to orientation }.toMap()) }
+
+    private fun move(current: Int, steps: Int, line: Line, update: (Int, List<Int>) -> State): State {
+        tailrec fun go(acc: Pair<Int, List<Int>>, rest: Int): Pair<Int, List<Int>> =
+            when {
+                rest == 0 -> acc
+                rest > 0 -> {
+                    val new = line.indexOf(acc.first + 1)
+                    if (line.canMoveTo(new)) {
+                        go(new to (acc.second + new), rest - 1)
+                    } else {
+                        acc
+                    }
+                }
+                else -> {
+                    val new = line.indexOf(acc.first - 1)
+                    if (line.canMoveTo(new)) {
+                        go(new to (acc.second + new), rest + 1)
+                    } else {
+                        acc
+                    }
+                }
+            }
+
+        val (next, path) = go(current to listOf(current), steps)
+        return update(next, path)
+    }
+
+    companion object {
+        fun init(maze: Maze): State =
+            State(
+                maze = maze,
+                x = maze.rows.first().start,
+                y = 0,
+                orientation = RIGHT
+            )
+    }
 }
+
+data class Position(val x: Int, val y: Int)
+
+
 
 sealed interface Movement
 
@@ -99,12 +163,6 @@ data class Go(val steps: Int) : Movement {
     override fun toString(): String = "$steps"
 }
 
-fun Int.toIndex(length: Int): Int =
-    when {
-        this in 0 until length -> this
-        this >= length -> (this % length)
-        else -> ((((this / length).absoluteValue + 1) * length + this) % length)
-    }.toInt()
 
 
 interface Turn : Movement {
@@ -138,11 +196,15 @@ object TurnLeft : Turn {
 enum class Orientation(
     val direction: Direction,
     val steps: (movement: Go) -> Int,
+    val value: Int,
+    val symbol: String,
 ) {
-    UP(Direction.VERTICAL, { -it.steps }),
-    DOWN(Direction.VERTICAL, { it.steps }),
-    RIGHT(Direction.HORIZONTAL, { it.steps }),
-    LEFT(Direction.HORIZONTAL, { -it.steps }),
+    UP(Direction.VERTICAL, { -it.steps }, 3, "^"),
+    DOWN(Direction.VERTICAL, { it.steps }, 1, "v"),
+    RIGHT(Direction.HORIZONTAL, { it.steps }, 0, ">"),
+    LEFT(Direction.HORIZONTAL, { -it.steps }, 2, "<");
+
+    override fun toString(): String = symbol
 }
 
 enum class Direction {
@@ -155,6 +217,27 @@ data class Line(
     val end: Int,
     val rocksAt: List<Int> = emptyList(),
 ) {
-    val width: Int = end - start + 1
-    override fun toString(): String = "$start -- $end : $rocksAt"
+    private val width: Int = end - start + 1
+
+    override fun toString(): String =
+        (0 .. end).map {
+            when {
+                it < start -> ' '
+                it in rocksAt -> '#'
+                else -> '.'
+            }
+        }.joinToString("")
+
+    fun canMoveTo(position: Int): Boolean = position !in rocksAt
+
+    fun indexOf(position: Int): Int =
+        (position- start).toIndex() + start
+
+    private fun Int.toIndex(): Int =
+        when {
+            this in 0 until width -> this
+            this >= width -> (this % width)
+            else -> ((((this / width).absoluteValue + 1) * width + this) % width)
+        }.toInt()
+
 }

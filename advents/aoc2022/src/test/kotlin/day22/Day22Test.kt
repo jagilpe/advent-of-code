@@ -11,6 +11,10 @@ import org.junit.jupiter.params.provider.Arguments.of
 import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
+/**
+ * 120018 -> too high
+ * 26558
+ */
 class Day22Test : BaseTest() {
     override val example: String = """
         ...#
@@ -28,11 +32,9 @@ class Day22Test : BaseTest() {
 
 10R5L5R10L4R5L5
 """
-
     override val result1: String = "6032"
 
-    override val result2: String
-        get() = TODO()
+    override val result2: String = "5031"
 
     override val input: String = "/day22/input"
 
@@ -42,7 +44,7 @@ class Day22Test : BaseTest() {
 
     @Test
     fun `should parse the rows`() {
-        val (mace, _) = example.splitToSequence("\n").parsed()
+        val (maze, _) = example.split("\n").parsed()
         val expectedRows = listOf(
             Line(8, 11, listOf(11)),
             Line(8, 11, listOf(9)),
@@ -58,12 +60,12 @@ class Day22Test : BaseTest() {
             Line(8, 15, listOf(14)),
         )
 
-        assertThat(mace.rows).isEqualTo(expectedRows)
+        assertThat(maze.rows).isEqualTo(expectedRows)
     }
 
     @Test
     fun `should parse the columns`() {
-        val (mace, _) = example.splitToSequence("\n").parsed()
+        val (maze, _) = example.split("\n").parsed()
         val expectedRows = listOf(
             Line(4, 7),
             Line(4, 7),
@@ -83,18 +85,119 @@ class Day22Test : BaseTest() {
             Line(8, 11),
         )
 
-        assertThat(mace.columns).isEqualTo(expectedRows)
+        assertThat(maze.columns).isEqualTo(expectedRows)
     }
 
     @Test
     fun `should parse the movements`() {
-        val (_, movements) = example.splitToSequence("\n").parsed()
+        val (_, movements) = example.split("\n").parsed()
         val expectedMovements = listOf(
             Go(10), TurnRight, Go(5), TurnLeft, Go(5),
             TurnRight, Go(10), TurnLeft, Go(4), TurnRight, Go(5), TurnLeft, Go(5)
         )
 
         assertThat(movements).isEqualTo(expectedMovements)
+    }
+
+    @Test
+    fun `traverse should work`() {
+        val initial = """
+        ...#...#...#
+        .#...#...#..
+        #...#...#...
+        ............
+...#.....#.#.#
+......#.......
+..#...........
+........#.#.#.
+...#....
+.....#..
+.#......
+......#.
+""".split("\n").filter { it.isNotBlank() }
+        val expected = """
+    ........
+    ......#.
+    ..#.....
+    #...#...
+    ........
+    .....#..
+    .#.....#
+    ........
+..#....#
+.#..#...
+.......#
+#...#...
+..#....#
+.#..#...
+....
+#...
+..#.
+.#..
+....
+#...
+""".split("\n").filter { it.isNotBlank() }
+
+        assertThat(initial.traversed).isEqualTo(expected)
+    }
+
+
+    @Test
+    fun `traverse should work bis`() {
+        val initial = """
+ .
+ .
+ .
+ .
+..
+..
+..
+..
+.
+.
+.
+.   
+""".split("\n").filter { it.isNotBlank() }
+        val expected = """
+    ........
+........
+""".split("\n").filter { it.isNotBlank() }
+
+        assertThat(initial.traversed).isEqualTo(expected)
+    }
+    
+    @Test
+    fun `should parse the cube sides`() {
+        val example2 = """
+    ...#.#..
+    .#......
+    #.....#.
+    ........
+    ...#
+    #...
+    ....
+    ..#.
+..#....#
+........
+.....#..
+........
+#...
+..#.
+....
+....
+
+10R5L5R10L4R5L5
+"""
+        val expectedSides = mapOf(
+            SideId.A to Side(listOf(3 x 0, 1 x 1, 0 x 2)),
+            SideId.B to Side(listOf(1 x 0, 2 x 2)),
+            SideId.C to Side(listOf(3 x 0, 0 x 1, 2 x 3)),
+            SideId.D to Side(listOf(3 x 0, 1 x 2)),
+            SideId.E to Side(listOf(2 x 0,)),
+            SideId.E to Side(listOf(0 x 0, 2 x 1)),
+        )
+
+        assertThat(parseSides(example2.split("\n"))).isEqualTo(expectedSides)
     }
 
 
@@ -105,44 +208,55 @@ class Day22Test : BaseTest() {
     }
 
     companion object {
-        private val simpleMaze = Maze(
-            rows = List(5) { Line(0, 4) },
-            columns = List(5) { Line(0, 4) },
-        )
-
-        private val simpleStart = State(simpleMaze, 2, 2, RIGHT)
 
         @JvmStatic
         fun `basic movement`(): Stream<Arguments> = listOf(
-            of(1, simpleStart.dir(RIGHT), TurnRight, simpleStart.dir(DOWN)),
-            of(2, simpleStart.dir(DOWN), TurnRight, simpleStart.dir(LEFT)),
-            of(3, simpleStart.dir(LEFT), TurnRight, simpleStart.dir(UP)),
-            of(4, simpleStart.dir(UP), TurnRight, simpleStart.dir(RIGHT)),
-            of(5, simpleStart.dir(RIGHT), TurnLeft, simpleStart.dir(UP)),
-            of(6, simpleStart.dir(DOWN), TurnLeft, simpleStart.dir(RIGHT)),
-            of(7, simpleStart.dir(LEFT), TurnLeft, simpleStart.dir(DOWN)),
-            of(8, simpleStart.dir(UP), TurnLeft, simpleStart.dir(LEFT)),
-
-            of(9, simpleStart.dir(RIGHT), Go(1), simpleStart.dir(RIGHT).x(3)),
-            of(10, simpleStart.dir(LEFT), Go(1), simpleStart.dir(LEFT).x(1)),
-            of(11, simpleStart.dir(UP), Go(1), simpleStart.dir(UP).y(1)),
-            of(12, simpleStart.dir(DOWN), Go(1), simpleStart.dir(DOWN).y(3)),
-
-
-            of(13, simpleStart.dir(RIGHT), Go(4), simpleStart.dir(RIGHT).x(1)),
-            of(14, simpleStart.dir(LEFT), Go(4), simpleStart.dir(LEFT).x(3)),
-            of(15, simpleStart.dir(UP), Go(4), simpleStart.dir(UP).y(3)),
-            of(16, simpleStart.dir(DOWN), Go(4), simpleStart.dir(DOWN).y(1)),
-
-            *with(parseMaze("...#...")) {
+            *with(State(parseMaze(List(5) { "....." }.joinToString("\n")), 2, 2, RIGHT)) {
                 arrayOf(
-                    of(16, simpleStart.dir(DOWN), Go(4), simpleStart.dir(DOWN).y(1))
+                    of(1, dir(RIGHT), TurnRight, dir(DOWN)),
+                    of(2, dir(DOWN), TurnRight, dir(LEFT)),
+                    of(3, dir(LEFT), TurnRight, dir(UP)),
+                    of(4, dir(UP), TurnRight, dir(RIGHT)),
+                    of(5, dir(RIGHT), TurnLeft, dir(UP)),
+                    of(6, dir(DOWN), TurnLeft, dir(RIGHT)),
+                    of(7, dir(LEFT), TurnLeft, dir(DOWN)),
+                    of(8, dir(UP), TurnLeft, dir(LEFT)),
+
+                    of(9, dir(RIGHT), Go(1), dir(RIGHT).x(3)),
+                    of(10, dir(LEFT), Go(1), dir(LEFT).x(1)),
+                    of(11, dir(UP), Go(1), dir(UP).y(1)),
+                    of(12, dir(DOWN), Go(1), dir(DOWN).y(3)),
+
+
+                    of(13, dir(RIGHT), Go(4), dir(RIGHT).x(1)),
+                    of(14, dir(LEFT), Go(4), dir(LEFT).x(3)),
+                    of(15, dir(UP), Go(4), dir(UP).y(3)),
+                    of(16, dir(DOWN), Go(4), dir(DOWN).y(1)),
+                )
+            },
+            *with(parseMaze("...#...").state(1, 0, RIGHT)) {
+                arrayOf(
+                    of(17, x(1), Go(4), x(2)),
+                    of(18, x(4), Go(4), x(1)),
+                    of(19, x(2).dir(LEFT), Go(4), x(5).dir(LEFT)),
+                    of(20, x(5).dir(LEFT), Go(4), x(4).dir(LEFT)),
+                )
+            },
+            *with(parseMaze("    ...#...").state(1, 0, RIGHT)) {
+                arrayOf(
+                    of(21, x(5), Go(4), x(6)),
+                    of(22, x(8), Go(4), x(5)),
+                    of(23, x(6).dir(LEFT), Go(4), x(9).dir(LEFT)),
+                    of(24, x(9).dir(LEFT), Go(4), x(8).dir(LEFT)),
                 )
             }
 
         ).stream()
     }
 }
+
+private fun Maze.state(x: Int, y: Int, orientation: Orientation): State =
+    State(maze = this, x = x, y = y, orientation = orientation)
 
 private fun State.dir(orientation: Orientation): State = copy(orientation = orientation)
 private fun State.x(x: Int): State = copy(x = x)

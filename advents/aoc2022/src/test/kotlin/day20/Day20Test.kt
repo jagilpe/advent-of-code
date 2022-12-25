@@ -27,7 +27,7 @@ class Day20Test : BaseTest() {
 
     override val result2: String = "1623178306"
 
-    override val input: String = "/day20/input"
+    override val input: String = "/day20/input.txt"
 
     override val run1: Executable = ::firstTask
 

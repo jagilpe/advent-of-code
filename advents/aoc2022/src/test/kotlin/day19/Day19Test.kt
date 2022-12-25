@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test
  * 4508 -> too low 2nd part
  * 5152 -> too low 2nd part
  * 5888 -> too low 2nd part
+ * 7360 -> not the right answer
  */
 class Day19Test : BaseTest() {
     override val example: String = """Blueprint 1: Each ore robot costs 4 ore. Each clay robot costs 2 ore. Each obsidian robot costs 3 ore and 14 clay. Each geode robot costs 2 ore and 7 obsidian.
