@@ -68,6 +68,7 @@ data class Route(
 
     fun findBestRoute(): Route {
         var lastStart = System.currentTimeMillis()
+        val start = lastStart
         tailrec fun go(current: Route, bestRoute: Route?, open: List<Route>, iter: Int): Route {
             if (iter % 10_000 == 0) {
                 val ellapsed = System.currentTimeMillis() - lastStart
@@ -77,12 +78,16 @@ data class Route(
 
             val nextBest =
                 if (current wins bestRoute)
-                    current.also { println(current.path) }
+                    current.also {
+                        println("******** Found new best in ${System.currentTimeMillis() - start} and $iter iterations - still ${open.size} open routes ************")
+                        println(current.path)
+                    }
                 else bestRoute
-            val nextOpen = if (!current.finished) (open + current.nextRoutes(nextBest)).sorted() else open.prune(bestRoute, nextBest)
+            val nextOpen = if (!current.finished) (open + current.nextRoutes(nextBest)).sorted() else open.prune(nextBest)
 
             return if (nextOpen.isNotEmpty()) {
-                go(nextOpen.first(), nextBest, nextOpen.drop(1), iter + 1)
+                val next = nextOpen.first()
+                go(next, nextBest, nextOpen.drop(1), iter + 1)
             } else {
                 println("Found in $iter iterations")
                 nextBest!!
@@ -92,14 +97,11 @@ data class Route(
         return go(this, null, emptyList(), 1)
     }
 
-    private fun List<Route>.prune(oldBest: Route?, newBest: Route?): List<Route> =
-        if (oldBest != newBest) {
-            filter { newBest == null || it canWin newBest }
-        } else {
-            this
-        }
+    private fun List<Route>.prune(newBest: Route?): List<Route> =
+        filter { it canWin newBest }
 
     override fun compareTo(other: Route): Int =
+//        distanceToEnd.compareTo(other.distanceToEnd)
         when (val dist = distanceToEnd.compareTo(other.distanceToEnd)) {
             0 -> length.compareTo(other.length)
             else -> dist
