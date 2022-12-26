@@ -2,6 +2,10 @@ package com.gilpereda.aoc2022.day19
 
 import com.gilpereda.aoc2022.BaseTest
 import com.gilpereda.aoc2022.Executable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.newFixedThreadPoolContext
+import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -48,6 +52,47 @@ Blueprint 2: Each ore robot costs 2 ore. Each clay robot costs 3 ore. Each obsid
         )
 
         assertThat(parsed.toList()).isEqualTo(expected)
+    }
+
+    @Test
+    fun `should save the best processes`() {
+        val threadPool = newFixedThreadPoolContext(4, "blueprints calculation")
+        val blueprints = inputSequence.parsed().take(3).toList()
+        val count = 50_000
+        runBlocking {
+            val firstDeferred = launch(threadPool) {
+                blueprints.getOrNull(0)?.let {
+                    it.saveBestProcesses(22, count)
+                }
+            }
+
+            val secondDeferred = launch(threadPool) {
+                blueprints.getOrNull(1)?.let {
+                    it.saveBestProcesses(22, count)
+                }
+            }
+
+            val thirdDeferred = launch(threadPool) {
+                blueprints.getOrNull(2)?.let {
+                    it.saveBestProcesses(22, count)
+                }
+            }
+
+            firstDeferred.join()
+            secondDeferred.join()
+            thirdDeferred.join()
+        }
+
+        blueprints.forEach { it.saveBestProcesses(10, 100_000) }
+    }
+
+    @Test
+    fun `should load the best processes`() {
+        val blueprints = example.splitToSequence("\n").parsed()
+
+        val loadedProcesses = blueprints.associate { it.id to it.loadBestProcesses(10, 20) }
+
+        assertThat(loadedProcesses).isNotEmpty
     }
 
 }

@@ -1,10 +1,22 @@
 package com.gilpereda.aoc2022.day19
 
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.newFixedThreadPoolContext
 import kotlinx.coroutines.runBlocking
+import java.io.File
 import java.time.LocalDateTime
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTimedValue
 
+
+private val objectMapper = jacksonObjectMapper()
+private val writer = objectMapper.writer()
+private val reader = objectMapper.reader()
+
+private val processListRef: TypeReference<List<Process>> = object : TypeReference<List<Process>>() {}
 
 fun firstTask(input: Sequence<String>): String {
     return input.parsed()
@@ -15,28 +27,54 @@ fun firstTask(input: Sequence<String>): String {
 fun secondTask(input: Sequence<String>): String {
     val threadPool = newFixedThreadPoolContext(4, "blueprints calculation")
     return runBlocking {
-        val blueprints = input.parsed().toList().take(1)
+        val blueprints = input.parsed().toList().take(3)
 
-        val firstDeferred = async(threadPool) {
+        val firstDeferred: Deferred<Process?> = async(threadPool) {
             blueprints.getOrNull(0)?.let {
-                it.bestProcess(32, 100).geode
-            } ?: 1
+                val seed = it.loadBestProcesses(22, 100)
+                it.bestXProcesses(32, 1, seed).first()
+            } ?:
+            null
         }
 
-        val secondDeferred = async(threadPool) {
+        val secondDeferred: Deferred<Process?> = async(threadPool) {
             blueprints.getOrNull(1)?.let {
-                it.bestProcess(32, 20).geode
-            } ?: 1
+                val seed = it.loadBestProcesses(22, 100)
+                it.bestXProcesses(32, 1, seed).first()
+            } ?:
+            null
         }
 
-        val thirdDeferred = async(threadPool) {
+        val thirdDeferred: Deferred<Process?> = async(threadPool) {
             blueprints.getOrNull(2)?.let {
-                it.bestProcess(32, 20).geode
-            } ?: 1
+                val seed = it.loadBestProcesses(22, 100)
+                it.bestXProcesses(32, 1, seed).first()
+            } ?:
+            null
         }
 
-        firstDeferred.await() * secondDeferred.await() * thirdDeferred.await()
+        val first = firstDeferred.await()
+        val second = secondDeferred.await()
+        val third = thirdDeferred.await()
+        println("Blueprint 1 - ${first?.geode} geodes")
+        println("Blueprint 2 - ${first?.geode} geodes")
+        println("Blueprint 3 - ${first?.geode} geodes")
+
+        (first?.geode ?: 1) * (second?.geode ?: 1) * (third?.geode ?: 1)
     }.toString()
+}
+
+fun BluePrint.saveBestProcesses(limit: Int, count: Int) {
+    val processed = bestXProcesses(limit, count)
+    val path = System.getProperty("user.dir")
+    writer.writeValue(File("$path/blueprint-$id-$limit.json"), processed)
+}
+
+fun BluePrint.loadBestProcesses(limit: Int, count: Int): List<Process> {
+    val fileName = "/day19/blueprint-$id-$limit.json"
+    val uri = Process::class.java.getResource(fileName).toURI()
+
+    return objectMapper.readValue(File(uri), processListRef).sortedDescending().take(count)
 }
 
 private val PARSE_REGEX =
@@ -55,56 +93,66 @@ fun Sequence<String>.parsed(): Sequence<BluePrint> =
         } ?: throw Exception("Could not parse $line")
     }
 
-fun BluePrint.bestProcess(limit: Int, x: Int = 20): Process =
-    if (limit < 23) {
-        bestXProcesses(limit, 1).first()
-    } else {
-        (23 .. limit).fold(bestXProcesses(22, x)) { acc, l ->
-            if (l < limit) {
-                bestXProcesses(l, x, acc)
-            } else {
-                bestXProcesses(l, 1, acc)
-            }
-        }.first()
-    }.also {
-        println("Best process for blueprint $id: ${it.geode} geodes.")
+@OptIn(ExperimentalTime::class)
+fun BluePrint.bestProcess(limit: Int, x: Int = 1_000): Process =
+    measureTimedValue {
+        if (limit < 23) {
+            bestXProcesses(limit, 1).first()
+        } else {
+            val best22 = bestXProcesses(22, x)
+            bestXProcesses(limit, 1, best22).first()
+        }
+    }.let { (value, duration) ->
+        println("Best process for blueprint $id: ${value.geode} geodes. Found in ${duration.inWholeSeconds}s")
+        value
     }
 
-private fun BluePrint.bestXProcesses(limit: Int, x: Int, seed: List<Process> = emptyList()): List<Process> {
+private fun BluePrint.bestXProcesses(limit: Int, count: Int, seed: List<Process> = emptyList()): List<Process> {
     val start = System.currentTimeMillis()
-    tailrec fun go(current: Process, currentBests: List<Process>, open: MutableCollection<Process>, iter: Long): List<Process> {
-        if (iter % 10_000_000 == 0L) {
-            println("${LocalDateTime.now()} - Blueprint $id - Iteration $iter. ${currentBests.size} best processes already found. ${open.size} open paths.")
+    var lastIterStart = start
+    tailrec fun go(current: Process, currentBests: MutableCollection<Process>, currentWorstBest: Process?, open: MutableCollection<Process>, iter: Long): List<Process> {
+        if (iter % 1_000_000 == 0L) {
+            val ellapsed = System.currentTimeMillis() - lastIterStart
+            println("${LocalDateTime.now()} - Blueprint $id - Iteration $iter. ${currentBests.size} best processes already found (${currentBests.minOfOrNull { it.geode }}~${currentBests.maxOfOrNull { it.geode }}) . ${open.size} open paths. $ellapsed ms")
+            lastIterStart = System.currentTimeMillis()
         }
-        val nextBests = if (current.finished) {
-            (currentBests + current).sortedDescending().take(x).also {
-                if (current in it) {
-                    println("${LocalDateTime.now()} - Blueprint $id - Iteration $iter - New best added for limit $limit with geode ${current.geode}. ${currentBests.size} best processes already found. ${open.size} open paths.")
+        val nextWorstBest = if (current.finished) {
+            if (currentBests.size < count || current wins currentWorstBest) {
+                currentBests.add(current)
+                when {
+                    currentBests.size > count -> {
+                        currentBests.minOrNull()?.also { currentBests.remove(it) }
+                        currentBests.minOrNull()
+                    }
+                    currentBests.size == count -> currentBests.minOrNull()
+                    else -> currentWorstBest
                 }
+            } else {
+                currentWorstBest
             }
         } else {
-            currentBests
+            currentWorstBest
         }
 
-        open.addAll(newCandidates(current, currentBests, x))
+        open.addAll(newCandidates(current, currentBests, count))
 
         return when (val nextCandidate = open.maxOrNull()?.also { open.remove(it) }) {
             null -> {
-                println("found for $id with limit $limit: ${nextBests?.size} processes in ${System.currentTimeMillis() - start}ms")
-                nextBests.ifEmpty { throw Exception("Best processes not found") }
+                println("found for $id with limit $limit: ${currentBests?.size} processes in ${System.currentTimeMillis() - start}ms")
+                currentBests.ifEmpty { throw Exception("Best processes not found") }.toList()
             }
 
-            else -> go(nextCandidate, nextBests, open, iter + 1)
+            else -> go(nextCandidate, currentBests, nextWorstBest, open, iter + 1)
         }
     }
 
     val initial = seed.map { it.copy(limit = limit) }.ifEmpty { listOf(Process(bluePrint = this, limit = limit)) }
-    return go(initial.first(), emptyList(), initial.drop(1).toMutableList(), 0)
+    return go(initial.first(), mutableSetOf(), initial.minOrNull(), initial.drop(1).toMutableList(), 0)
 }
 
 fun BluePrint.quality(limit: Int): Int = bestProcess(limit).geode * id
 
-private fun newCandidates(current: Process, currentBests: List<Process>, x: Int): List<Process> =
+private fun newCandidates(current: Process, currentBests: MutableCollection<Process>, x: Int): List<Process> =
     if (!current.finished && (currentBests.size < x || currentBests.any { current canWin it })) {
         current.nextCandidates()
     } else {
@@ -121,6 +169,9 @@ data class Process(
     val limit: Int,
 ) : Comparable<Process> {
     val finished: Boolean = time > limit
+
+    infix fun wins(other: Process?): Boolean =
+        this.finished && (other == null || this > other)
 
     infix fun canWin(other: Process?): Boolean =
         !(this cannotWin other)
