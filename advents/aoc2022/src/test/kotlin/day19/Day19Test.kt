@@ -19,7 +19,7 @@ Blueprint 2: Each ore robot costs 2 ore. Each clay robot costs 3 ore. Each obsid
 
     override val result1: String = "33"
 
-    override val result2: String = "62"
+    override val result2: String = "3472"
 
     override val input: String = "/day19/input"
 

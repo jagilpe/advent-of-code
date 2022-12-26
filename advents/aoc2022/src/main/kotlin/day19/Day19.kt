@@ -1,5 +1,8 @@
 package com.gilpereda.aoc2022.day19
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.newFixedThreadPoolContext
+import kotlinx.coroutines.runBlocking
 import java.time.LocalDateTime
 
 
@@ -10,18 +13,30 @@ fun firstTask(input: Sequence<String>): String {
 }
 
 fun secondTask(input: Sequence<String>): String {
-    return input.parsed().toList()[1].maxGeode(32).toString()
-//    val threadPool = newFixedThreadPoolContext(4, "myPool")
+    val threadPool = newFixedThreadPoolContext(4, "blueprints calculation")
+    return runBlocking {
+        val blueprints = input.parsed().toList().take(1)
 
-//    return runBlocking {
-//        val (first, second, third) = input.parsed().toList()
-//
-//        val firstDeferred = async(threadPool) { first.maxGeode(32) }
-//        val secondDeferred = async(threadPool) { second.maxGeode(32) }
-//        val thirdDeferred = async(threadPool) { third.maxGeode(32) }
-//
-//        firstDeferred.await() * secondDeferred.await() * thirdDeferred.await()
-//    }.toString()
+        val firstDeferred = async(threadPool) {
+            blueprints.getOrNull(0)?.let {
+                it.bestProcess(32, 100).geode
+            } ?: 1
+        }
+
+        val secondDeferred = async(threadPool) {
+            blueprints.getOrNull(1)?.let {
+                it.bestProcess(32, 20).geode
+            } ?: 1
+        }
+
+        val thirdDeferred = async(threadPool) {
+            blueprints.getOrNull(2)?.let {
+                it.bestProcess(32, 20).geode
+            } ?: 1
+        }
+
+        firstDeferred.await() * secondDeferred.await() * thirdDeferred.await()
+    }.toString()
 }
 
 private val PARSE_REGEX =
@@ -40,39 +55,60 @@ fun Sequence<String>.parsed(): Sequence<BluePrint> =
         } ?: throw Exception("Could not parse $line")
     }
 
-fun BluePrint.maxGeode(limit: Int): Int {
-    tailrec fun go(current: Process, currentBest: Process?, open: MutableCollection<Process>, iter: Long): Int {
-        if (iter % 500_000_000 == 0L) {
-            println("${LocalDateTime.now()}: blueprint: ${id}, iter: $iter, open paths: ${open.size}, current winner: ${currentBest?.geode ?: 0}, current quality: ${current.geode}")
+fun BluePrint.bestProcess(limit: Int, x: Int = 20): Process =
+    if (limit < 23) {
+        bestXProcesses(limit, 1).first()
+    } else {
+        (23 .. limit).fold(bestXProcesses(22, x)) { acc, l ->
+            if (l < limit) {
+                bestXProcesses(l, x, acc)
+            } else {
+                bestXProcesses(l, 1, acc)
+            }
+        }.first()
+    }.also {
+        println("Best process for blueprint $id: ${it.geode} geodes.")
+    }
+
+private fun BluePrint.bestXProcesses(limit: Int, x: Int, seed: List<Process> = emptyList()): List<Process> {
+    val start = System.currentTimeMillis()
+    tailrec fun go(current: Process, currentBests: List<Process>, open: MutableCollection<Process>, iter: Long): List<Process> {
+        if (iter % 10_000_000 == 0L) {
+            println("${LocalDateTime.now()} - Blueprint $id - Iteration $iter. ${currentBests.size} best processes already found. ${open.size} open paths.")
         }
-        val nextBest = if (current.finished && (currentBest == null || current.geode > currentBest.geode)) {
-            open.removeIf { it cannotWin current }
-            current
+        val nextBests = if (current.finished) {
+            (currentBests + current).sortedDescending().take(x).also {
+                if (current in it) {
+                    println("${LocalDateTime.now()} - Blueprint $id - Iteration $iter - New best added for limit $limit with geode ${current.geode}. ${currentBests.size} best processes already found. ${open.size} open paths.")
+                }
+            }
         } else {
-            currentBest
+            currentBests
         }
 
-        open.addAll(newCandidates(current, currentBest))
+        open.addAll(newCandidates(current, currentBests, x))
 
         return when (val nextCandidate = open.maxOrNull()?.also { open.remove(it) }) {
             null -> {
-                println("found for $id : ${currentBest?.geode}")
-                currentBest?.geode ?: throw Exception("Could not find best process")
+                println("found for $id with limit $limit: ${nextBests?.size} processes in ${System.currentTimeMillis() - start}ms")
+                nextBests.ifEmpty { throw Exception("Best processes not found") }
             }
-            else -> go(nextCandidate, nextBest, open, iter + 1)
+
+            else -> go(nextCandidate, nextBests, open, iter + 1)
         }
     }
 
-    return go(Process(bluePrint = this, limit = limit), null, mutableListOf(), 0)
+    val initial = seed.map { it.copy(limit = limit) }.ifEmpty { listOf(Process(bluePrint = this, limit = limit)) }
+    return go(initial.first(), emptyList(), initial.drop(1).toMutableList(), 0)
 }
 
-fun BluePrint.quality(limit: Int): Int = maxGeode(limit) * id
+fun BluePrint.quality(limit: Int): Int = bestProcess(limit).geode * id
 
-private fun newCandidates(current: Process, currentBest: Process?): List<Process> =
-    if (current.finished || current cannotWin currentBest) {
-        emptyList()
-    } else {
+private fun newCandidates(current: Process, currentBests: List<Process>, x: Int): List<Process> =
+    if (!current.finished && (currentBests.size < x || currentBests.any { current canWin it })) {
         current.nextCandidates()
+    } else {
+        emptyList()
     }
 
 data class Process(
@@ -85,6 +121,9 @@ data class Process(
     val limit: Int,
 ) : Comparable<Process> {
     val finished: Boolean = time > limit
+
+    infix fun canWin(other: Process?): Boolean =
+        !(this cannotWin other)
 
     infix fun cannotWin(other: Process?): Boolean =
         robots.geode == 0 && time > (other?.firstGeodeRobotAt ?: limit)
@@ -100,7 +139,7 @@ data class Process(
             BuildGeodeRobot(),
         ).filter { it.resourcesReach }
             .sortedDescending()
-            .map { it.next() }
+            .map { it.next().updateLog() }
     }
 
     override fun compareTo(other: Process): Int =
@@ -155,6 +194,7 @@ data class Process(
                 robots = robots.copy(clay = robots.clay + 1),
                 time = time + 1
             )
+
         override val resourcesReach: Boolean = resources covers bluePrint.clayRobot
     }
 
@@ -166,6 +206,7 @@ data class Process(
                 robots = robots.copy(obsidian = robots.obsidian + 1),
                 time = time + 1
             )
+
         override val resourcesReach: Boolean = resources covers bluePrint.obsidianRobot
     }
 
@@ -178,6 +219,7 @@ data class Process(
                 time = time + 1,
                 firstGeodeRobotAt = time
             )
+
         override val resourcesReach: Boolean = resources covers bluePrint.geodeRobot
     }
 }
@@ -188,7 +230,7 @@ data class MinuteLog(
     val resources: Resources,
 )
 
-fun Process.updateLog(time: Int): Process =
+fun Process.updateLog(): Process =
     copy(
         resourceEvolution = resourceEvolution + MinuteLog(time = time, robots = robots, resources = resources)
     )
