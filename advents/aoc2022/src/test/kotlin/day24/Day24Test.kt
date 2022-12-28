@@ -25,8 +25,7 @@ class Day24Test : BaseTest() {
 
     override val result1: String = "18"
 
-    override val result2: String
-        get() = TODO()
+    override val result2: String = "54"
 
     override val input: String = "/day24/input"
 
@@ -36,28 +35,28 @@ class Day24Test : BaseTest() {
 
     @Test
     fun `should parsed the inputs`() {
-        val expected = Maze(
-            mazeMap = listOf(
-                listOf(W, o, W, W, W, W, W, W,),
-                listOf(W, R, R, o, L, U, L, W,),
-                listOf(W, o, L, o, o, L, L, W,),
-                listOf(W, R, D, o, R, L, R, W,),
-                listOf(W, L, U, D, U, U, R, W,),
-                listOf(W, W, W, W, W, W, o, W,),
-            ),
-        )
+        val expected =
+            listOf(
+                listOf(W, o, W, W, W, W, W, W),
+                listOf(W, R, R, o, L, U, L, W),
+                listOf(W, o, L, o, o, L, L, W),
+                listOf(W, R, D, o, R, L, R, W),
+                listOf(W, L, U, D, U, U, R, W),
+                listOf(W, W, W, W, W, W, o, W),
+            )
+
         assertThat(example.split("\n").parsed()).isEqualTo(expected)
     }
 
     @ParameterizedTest
     @MethodSource("blizzardEvolution")
-    fun `should follow the evolution of the blizzards`(initial: Maze, expected: String, rounds: Int) {
-        val actual = generateSequence(initial) { it.next }.take(rounds).last().toString()
-        assertThat(actual).isEqualTo(expected)
+    fun `should follow the evolution of the blizzards`(maze: Expedition, expected: String, round: Int) {
+        assertThat(maze.mazeAt(round).toString()).isEqualTo(expected)
     }
 
     companion object {
-        private val expectedEvolution: List<String> = listOf("""
+        private val expectedEvolution: List<String> = listOf(
+            """
                 #E######
                 #>>.<^<#
                 #.<..<<#
@@ -162,7 +161,7 @@ class Day24Test : BaseTest() {
                 ######.#
             """.trimIndent(),
 
-        )
+            )
 
         @JvmStatic
         fun blizzardEvolution(): Stream<Arguments> = listOf(
@@ -319,13 +318,13 @@ class Day24Test : BaseTest() {
             initial: MazeMap,
             expected: MazeMap,
             rounds: Int = 1,
-        ): Arguments = Arguments.of(initial.maze, expected.maze.toString(), rounds + 1)
+        ): Arguments = Arguments.of(initial.evolution(rounds), Maze(expected).toString(), rounds)
 
         private fun extendedEvolutionTestCase(
             initial: String,
             expected: String,
             rounds: Int,
-        ): Arguments = Arguments.of(initial.split("\n").parsed(), expected.replace("E", "."), rounds + 1)
+        ): Arguments = Arguments.of(initial.split("\n").parsed().evolution(rounds), expected.replace("E", "."), rounds)
     }
 
 }

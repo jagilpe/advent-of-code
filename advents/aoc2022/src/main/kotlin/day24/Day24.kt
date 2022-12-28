@@ -7,18 +7,28 @@ import com.gilpereda.aoc2022.day24.Cell.Companion.U
 import com.gilpereda.aoc2022.day24.Orientation.*
 import java.time.LocalDateTime
 import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.sqrt
 
-fun firstTask(input: Sequence<String>): String =
-    Route.initial(input.toList().parsed()).findBestRoute()
-        .also {
-            println(it)
-        }
-        .length.toString()
+fun firstTask(input: Sequence<String>): String {
+    val maze = Maze(input.toList().parsed())
+    return Expedition.init(maze).findBestPath(maze.start, maze.end, 0).time.toString()
+}
 
-fun secondTask(input: Sequence<String>): String = TODO()
+fun secondTask(input: Sequence<String>): String {
+    val maze = Maze(input.toList().parsed())
+    val start = maze.start
+    val end = maze.end
+    val expedition = Expedition.init(maze)
+    val there = expedition.findBestPath(start, end, 0)
+    println("Found way there in ${there.time} min")
+    val back = expedition.findBestPath(end, start, there.time)
+    println("Found way back in ${back.time} min")
+    return expedition.findBestPath(start, end, back.time).time.toString()
+}
 
 
-fun List<String>.parsed(): Maze =
+fun List<String>.parsed(): MazeMap =
     filter { it.isNotBlank() }
         .map { line ->
             line.map {
@@ -31,7 +41,7 @@ fun List<String>.parsed(): Maze =
                     else -> Empty
                 }
             }
-        }.maze
+        }
 
 typealias MazeMap = List<List<Cell>>
 
@@ -39,106 +49,84 @@ val MazeMap.maze
     get() = Maze(this)
 
 
-data class Route(
-    private val maze: Maze,
-    private val start: Coordinate,
-    private val end: Coordinate,
-    private val path: List<Coordinate> = listOf(start)
-) : Comparable<Route> {
-    val length: Int = path.size - 1
+data class Expedition(
+    private val mazeList: MutableList<Maze>,
+) {
+    fun mazeAt(time: Int): Maze =
+        when (val maze = mazeList.getOrNull(time)) {
+            null -> mazeAt(time - 1).next.also { mazeList.add(it) }
+            else -> maze
+        }
 
-    private val finished: Boolean by lazy { path.last() == end }
-
-    private val current: Coordinate by lazy { path.last() }
-
-    private val distanceToEnd: Int by lazy {
-        abs(end.x - current.x) + abs(end.y - current.y)
-    }
-
-    private val potentialFinalLength: Int by lazy { length + distanceToEnd }
-
-    private infix fun wins(other: Route?): Boolean =
-        this.finished && (other == null || path.size < other.path.size)
-
-    private infix fun canNotWin(other: Route?): Boolean =
-        !(this canWin other)
-
-    private infix fun canWin(other: Route?): Boolean =
-        other == null || potentialFinalLength < other.potentialFinalLength
-
-    fun findBestRoute(): Route {
-        var lastStart = System.currentTimeMillis()
-        val start = lastStart
-        tailrec fun go(current: Route, bestRoute: Route?, open: List<Route>, iter: Int): Route {
-            if (iter % 10_000 == 0) {
-                val ellapsed = System.currentTimeMillis() - lastStart
-                println("${LocalDateTime.now()} - iter: $iter, current: ${current.length}, best: ${bestRoute?.length ?: 0}, open: ${open.size}, in: $ellapsed")
-                lastStart = System.currentTimeMillis()
+    fun findBestPath(start: Coordinate, goal: Coordinate, time: Int): Step {
+        tailrec fun go(current: Step, open: Set<Step>, iter: Int = 1): Step {
+            if (iter % 1_000_000 == 0) {
+                println("${LocalDateTime.now()} - iteration $iter - current: ${current.distanceToGoal} - open: ${open.size} - goal: $goal.")
             }
-
-            val nextBest =
-                if (current wins bestRoute)
-                    current.also {
-                        println("******** Found new best in ${System.currentTimeMillis() - start} and $iter iterations - still ${open.size} open routes ************")
-                        println(current.path)
-                    }
-                else bestRoute
-            val nextOpen = if (!current.finished) (open + current.nextRoutes(nextBest)).sorted() else open.prune(nextBest)
-
-            return if (nextOpen.isNotEmpty()) {
-                val next = nextOpen.first()
-                go(next, nextBest, nextOpen.drop(1), iter + 1)
+            return if (current.coordinate == goal) {
+                current
             } else {
-                println("Found in $iter iterations")
-                nextBest!!
+                val nextOpen: Set<Step> = open + current.nextSteps
+                val next = nextOpen.minBy { it.fScore }
+                go(next, nextOpen - next, iter + 1)
             }
         }
 
-        return go(this, null, emptyList(), 1)
+        return go(Step(coordinate = start, goal = goal, time = time), setOf())
     }
 
-    private fun List<Route>.prune(newBest: Route?): List<Route> =
-        filter { it canWin newBest }
+    private fun Coordinate.isFree(time: Int): Boolean =
+        mazeAt(time).isEmpty(this)
 
-    override fun compareTo(other: Route): Int =
-//        distanceToEnd.compareTo(other.distanceToEnd)
-        when (val dist = distanceToEnd.compareTo(other.distanceToEnd)) {
-            0 -> length.compareTo(other.length)
-            else -> dist
+
+    inner class Step(
+        val coordinate: Coordinate,
+        val goal: Coordinate,
+        val time: Int = 0,
+    ) {
+        val distanceToGoal: Int = coordinate.distanceTo(goal)
+        val fScore: Int = time + distanceToGoal
+
+        val nextSteps: List<Step>
+            get() = coordinate.movements
+                .filter { it.isFree(time + 1) }
+                .map { Step(coordinate = it, time = time + 1, goal = goal) }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Step
+
+            if (coordinate != other.coordinate) return false
+            if (time != other.time) return false
+            if (goal != other.goal) return false
+
+            return true
         }
 
-    private fun nextRoutes(bestRoute: Route?): List<Route> {
-        val nextMaze = maze.next
-        return current.movements
-            .filter { nextMaze.isEmpty(it) }
-            .map { copy(maze = nextMaze, path = path + it) }
-            .filter { it canWin bestRoute }
+        override fun hashCode(): Int {
+            var result = coordinate.hashCode()
+            result = 31 * result + time
+            result = 31 * result + goal.hashCode()
+            return result
+        }
     }
-
-    override fun toString(): String = maze.printWithExpedition(current)
 
     companion object {
-        fun initial(maze: Maze): Route =
-            Route(
-                maze = maze,
-                start = maze.start,
-                end = maze.end,
-            )
+        fun init(maze: Maze): Expedition =
+            generateSequence(maze) { it.next }.take(500).toMutableList().let { Expedition(it) }
     }
 }
+
+fun MazeMap.evolution(rounds: Int): Expedition =
+    generateSequence(Maze(this)) { it.next }.take(rounds + 1).toMutableList().let { Expedition(it) }
 
 data class Maze(
     private val mazeMap: MazeMap,
 ) {
     private val width: Int = mazeMap.first().size
     private val height: Int = mazeMap.size
-
-    fun printWithExpedition(coordinate: Coordinate): String =
-        mazeMap.mapIndexed { y, line ->
-            line.mapIndexed { x, cell ->
-                if (coordinate == Coordinate(x, y)) "E" else cell.toString()
-            }.joinToString("")
-        }.joinToString("\n")
 
     val start: Coordinate by lazy {
         Coordinate(x = mazeMap.first().firstNotEmpty, 0)
@@ -204,6 +192,9 @@ data class Coordinate(
     val y: Int,
 ) {
     override fun toString(): String = "($x, $y)"
+
+    fun distanceTo(other: Coordinate): Int =
+        abs(x - other.x) + abs(y - other.y)
 
     val movements: List<Coordinate> by lazy {
         listOf(up, down, right, left, this)
