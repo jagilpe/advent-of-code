@@ -5,149 +5,129 @@ fun firstTask(input: Sequence<String>): String =
     LavaDroplet.parsed(input).faces.count().toString()
 
 fun secondTask(input: Sequence<String>): String {
-    val lavaDroplet = LavaDroplet.parsed(input)
-//    lavaDroplet.dumpAll()
-//    lavaDroplet.dumpOuter()
-    return (lavaDroplet.allOuterFaces.count()).toString()
+    val cover = Cover(input.parsed().toSet())
+    cover.dump()
+    return cover.faces.count().toString()
 }
 
 fun Sequence<String>.parsed(): Sequence<Cube> =
     filter(String::isNotBlank)
         .map(Cube::from)
 
-class LavaDroplet(
-    private val cubes: Set<Cube>
+
+class Cover(
+    val cubes: Set<Cube>
 ) {
+    private val minX: Int = cubes.minOf { it.x }
+    private val maxX: Int = cubes.maxOf { it.x }
+    private val minY: Int = cubes.minOf { it.y }
+    private val maxY: Int = cubes.maxOf { it.y }
+    private val minZ: Int = cubes.minOf { it.z }
+    private val maxZ: Int = cubes.maxOf { it.z }
+
+    private val xRange: IntRange = (minX - 2)..(maxX + 2)
+    private val yRange: IntRange = (minY - 2)..(maxY + 2)
+    private val zRange: IntRange = (minZ - 2)..(maxZ + 2)
+
     val faces: Set<Face> by lazy {
-        cubes.fold(emptySet()) { acc, cube ->
+        positiveCubes.fold(emptySet()) { acc, cube ->
             val common = acc.intersect(cube.faces)
             acc + cube.faces - common
         }
     }
 
-    val allOuterFaces: Set<Face> by lazy {
-        outerFaces + otherOuterFaces
+    private val negativeCubes: Set<Cube> by lazy {
+        calculateCoverAsc() + calculateCoverDesc()
     }
 
-    private val otherOuterFaces: Set<Face> by lazy {
-        faces.filter { it !in outerFaces }
-            .filter { face ->
-                outerFaces.any {
-                val mirrorFace = face.mirrorOf(it)
-                it.isConnectedWith(face) && mirrorFace !in outerFaces
-            } }
-            .toSet()
-    }
-
-    val outerFaces: Set<Face> by lazy {
-        outerXFaces + outerYFaces + outerZFaces
-    }
-
-    private val xFaces: Set<XFace> by lazy { faces.filterIsInstance<XFace>().toSet() }
-    private val yFaces: Set<YFace> by lazy { faces.filterIsInstance<YFace>().toSet() }
-    private val zFaces: Set<ZFace> by lazy { faces.filterIsInstance<ZFace>().toSet() }
-
-    private val outerXFaces: Set<XFace> by lazy {
-        getOuter { it.x }
-    }
-
-    private val outerYFaces: Set<YFace> by lazy {
-        getOuter { it.y }
-    }
-
-    private val outerZFaces: Set<ZFace> by lazy {
-        getOuter { it.z }
-    }
-
-    private inline fun <reified T : Face> getOuter(position: (T) -> Int): Set<T> =
-        faces.filterIsInstance(T::class.java)
-            .filter { face ->
-                matching(face).partition { position(face) < position(it) }.let { (ones, others) ->
-                    ones.isEmpty() || others.isEmpty()
-                }
+    private val positiveCubes: Set<Cube> by lazy {
+        zRange.flatMap { z ->
+            yRange.flatMap { y ->
+                xRange.map { x -> Cube(x, y, z) }
             }
-            .toSet()
+        }.filter { it !in negativeCubes }.toSet()
+    }
 
-    private inline fun <reified T : Face> matching(face: T): List<T> =
-        faces.filterIsInstance(T::class.java).filter {
-            face != it && when (face) {
-                is XFace -> face.y == it.y && face.z == it.z
-                is YFace -> face.x == it.x && face.z == it.z
-                is ZFace -> face.x == it.x && face.y == it.y
-                else -> false
+    private fun calculateCoverAsc(): Set<Cube> {
+        tailrec fun go(acc: Set<Cube>, z: Int): Set<Cube> =
+            if (z < maxZ) {
+                val goUp = acc.cubesAt(z).goUp()
+                val expand = goUp.expand()
+                go(acc + expand, z + 1)
+            } else {
+                acc
             }
-        }
 
-    fun dumpAll() {
-        dump(xFaces, yFaces, zFaces)
+        return go(plateAt(zRange.first, xRange, yRange), zRange.first)
     }
 
-    fun dumpOuter() {
-        dump(outerXFaces, outerYFaces, outerZFaces)
+    private fun calculateCoverDesc(): Set<Cube> {
+        tailrec fun go(acc: Set<Cube>, z: Int): Set<Cube> =
+            if (z > minZ) {
+                go(acc + acc.cubesAt(z).goDown().expand(), z - 1)
+            } else {
+                acc
+            }
+
+        return go(plateAt(zRange.last, xRange, yRange), zRange.last)
     }
 
-    private fun dump(xFaces: Set<XFace>, yFaces: Set<YFace>, zFaces: Set<ZFace>) {
-        println("X axis")
-        println(dumpXFaces(xFaces))
-        println()
+    private fun Set<Cube>.cubesAt(z: Int): Set<Cube> =
+        filter { it.z == z }.toSet()
 
-        println("Y axis")
-        println(dumpYFaces(yFaces))
-        println()
+    private fun Set<Cube>.goUp(): Set<Cube> =
+        map { it.copy(z = it.z + 1) }.filter { it !in cubes }.toSet()
 
-        println("Z axis")
-        println(dumpZFaces(zFaces))
-        println()
+    private fun Set<Cube>.goDown(): Set<Cube> =
+        map { it.copy(z = it.z - 1) }.filter { it !in cubes }.toSet()
+
+    private fun Set<Cube>.expand(): Set<Cube> {
+        tailrec fun go(acc: Set<Cube>, rest: Set<Cube>): Set<Cube> =
+            if (rest.isNotEmpty()) {
+                val newCubes = rest.flatMap { it.neighboursInZ }
+                    .filter { it !in acc && it !in cubes && it.x in xRange && it.y in yRange }.toSet()
+                go(acc + newCubes, newCubes)
+            } else {
+                acc
+            }
+
+        return go(this, this)
     }
 
-    private fun dumpXFaces(faces: Set<Face>): String {
-        val minX = faces.minOf { it.x }
-        val maxX = faces.maxOf { it.x }
-        val minY = faces.minOf { it.y }
-        val maxY = faces.maxOf { it.y }
-        val minZ = faces.minOf { it.z }
-        val maxZ = faces.maxOf { it.z }
+    private fun plateAt(z: Int, xRange: IntRange, yRange: IntRange): Set<Cube> =
+        xRange.flatMap { x -> yRange.map { y -> Cube(x, y, z) } }.toSet()
 
-        return (minX..maxX).joinToString("\n\n") { x ->
-            (maxZ downTo minZ).joinToString("\n") { z ->
-                (minY..maxY).joinToString("") { y ->
-                    if (XFace(x, y, z) in faces) "o" else "."
-                }
+    fun dump() {
+        val string = zRange.joinToString("\n\n\n") { z ->
+            yRange.joinToString("\n") { y ->
+                positiveCubes.xLineOf(y, z) + "   " + cubes.xLineOf(y, z)
             }
         }
+        println(string)
     }
 
-    private fun dumpYFaces(faces: Set<Face>): String {
-        val minX = faces.minOf { it.x }
-        val maxX = faces.maxOf { it.x }
-        val minY = faces.minOf { it.y }
-        val maxY = faces.maxOf { it.y }
-        val minZ = faces.minOf { it.z }
-        val maxZ = faces.maxOf { it.z }
+    private fun Set<Cube>.xLineOf(y: Int, z: Int): String =
+        xRange.map { x ->
+            if (Cube(x, y, z) in this) 'o' else '.'
+        }.joinToString("")
 
-        return (minY..maxY).joinToString("\n\n") { y ->
-            (maxZ downTo minZ).joinToString("\n") { z ->
-                (minX..maxX).joinToString("") { x ->
-                    if (YFace(x, y, z) in faces) "o" else "."
-                }
-            }
-        }
-    }
+    private val Cube.neighboursInZ: List<Cube>
+        get() = listOfNotNull(
+            copy(x = x - 1),
+            copy(y = y - 1),
+            copy(y = y + 1),
+            copy(x = x + 1),
+        )
+}
 
-    private fun dumpZFaces(faces: Set<Face>): String {
-        val minX = faces.minOf { it.x }
-        val maxX = faces.maxOf { it.x }
-        val minY = faces.minOf { it.y }
-        val maxY = faces.maxOf { it.y }
-        val minZ = faces.minOf { it.z }
-        val maxZ = faces.maxOf { it.z }
 
-        return (minZ..maxZ).joinToString("\n\n") { z ->
-            (maxY downTo minY).joinToString("\n") { y ->
-                (minX..maxX).joinToString("") { x ->
-                    if (ZFace(x, y, z) in faces) "o" else "."
-                }
-            }
+class LavaDroplet(
+    val cubes: Set<Cube>
+) {
+    val faces: Set<Face> by lazy {
+        cubes.fold(emptySet()) { acc, cube ->
+            val common = acc.intersect(cube.faces)
+            acc + cube.faces - common
         }
     }
 
@@ -182,7 +162,7 @@ data class XFace(
         other is XFace && y == other.y && z == other.z
 
     override fun isConnectedWith(other: Face): Boolean =
-        when(other) {
+        when (other) {
 //            is XFace -> (x == other.x) && ((y == other.y && other.z in z - 1 .. z + 1) || (other.y in y - 1 .. y + 1 && other.z == z))
             is XFace -> false
             is YFace -> (other.x == x || other.x == x - 1) && (other.y == y || other.y == y + 1) && other.z == z
@@ -207,7 +187,7 @@ data class YFace(
         other is YFace && x == other.x && y == other.y
 
     override fun isConnectedWith(other: Face): Boolean =
-        when(other) {
+        when (other) {
             is XFace -> other.isConnectedWith(this)
             is YFace -> false
 //            is YFace -> (y == other.y) && ((x == other.x && other.z in z - 1 .. z + 1) || (other.x in x - 1 .. x + 1 && other.z == z))
@@ -232,7 +212,7 @@ data class ZFace(
         other is ZFace && x == other.x && z == other.z
 
     override fun isConnectedWith(other: Face): Boolean =
-        when(other) {
+        when (other) {
             is XFace -> other.isConnectedWith(this)
             is YFace -> other.isConnectedWith(this)
 //            is ZFace -> (z == other.z) && ((x == other.x && other.y in y - 1 .. y + 1) || (other.x in x - 1 .. x + 1 && other.y == y))
