@@ -32,9 +32,30 @@ class Day22Test : BaseTest() {
 
 10R5L5R10L4R5L5
 """
+    override val example2: String = """
+    ...#.#..
+    .#......
+    #.....#.
+    ........
+    ...#
+    #...
+    ....
+    ..#.
+..#....#
+........
+.....#..
+........
+#...
+..#.
+....
+....
+
+10R5L5R10L4R5L5
+"""
+
     override val result1: String = "6032"
 
-    override val result2: String = "5031"
+    override val result2: String = "10006"
 
     override val input: String = "/day22/input"
 
@@ -165,39 +186,30 @@ class Day22Test : BaseTest() {
 
         assertThat(initial.traversed).isEqualTo(expected)
     }
-    
+
     @Test
     fun `should parse the cube sides`() {
-        val example2 = """
-    ...#.#..
-    .#......
-    #.....#.
-    ........
-    ...#
-    #...
-    ....
-    ..#.
-..#....#
-........
-.....#..
-........
-#...
-..#.
-....
-....
-
-10R5L5R10L4R5L5
-"""
-        val expectedSides = mapOf(
-            SideId.A to Side(listOf(3 x 0, 1 x 1, 0 x 2)),
-            SideId.B to Side(listOf(1 x 0, 2 x 2)),
-            SideId.C to Side(listOf(3 x 0, 0 x 1, 2 x 3)),
-            SideId.D to Side(listOf(3 x 0, 1 x 2)),
-            SideId.E to Side(listOf(2 x 0,)),
-            SideId.E to Side(listOf(0 x 0, 2 x 1)),
+        val expectedCube = Cube(
+            width = 4,
+            sideA = Side(4, Point(4, 0), listOf(3 x 0, 1 x 1, 0 x 2)),
+            sideB = Side(4, Point(8, 0), listOf(1 x 0, 2 x 2)),
+            sideC = Side(4, Point(4, 4), listOf(3 x 0, 0 x 1, 2 x 3)),
+            sideD = Side(4, Point(4, 8), listOf(3 x 0, 1 x 2)),
+            sideE = Side(4, Point(0, 8), listOf(2 x 0)),
+            sideF = Side(4, Point(0, 12), listOf(0 x 0, 2 x 1)),
         )
 
-        assertThat(parseSides(example2.split("\n"))).isEqualTo(expectedSides)
+        assertThat(parseCube(example2.split("\n"))).isEqualTo(expectedCube)
+    }
+
+    @ParameterizedTest
+    @MethodSource("lanesRocks")
+    fun `the lanes should be right`(lane: (Cube) -> LanePosition, rocks: List<Int>, position: Int, way: Way) {
+        val cube = parseCube(example2.split("\n"))
+
+        assertThat(lane(cube).lane.rocksAt).hasSameElementsAs(rocks)
+        assertThat(lane(cube).position).isEqualTo(position)
+        assertThat(lane(cube).way).isEqualTo(way)
     }
 
 
@@ -208,6 +220,82 @@ class Day22Test : BaseTest() {
     }
 
     companion object {
+
+        @JvmStatic
+        fun lanesRocks(): Stream<Arguments> = Stream.of(
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(4,0), DOWN)},
+                listOf(2, 5, 15),
+                0,
+                Way.INC,
+            ),
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(5,2), RIGHT)},
+                listOf(0, 6),
+                1,
+                Way.INC,
+            ),
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(10,1), UP)},
+                listOf(2, 8, 13),
+                1,
+                Way.DEC,
+            ),
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(9,0), LEFT)},
+                listOf(3, 5),
+                5,
+                Way.DEC,
+            ),
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(5,5), DOWN)},
+                listOf(1, 10, 13),
+                5,
+                Way.INC
+            ),
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(6,6), RIGHT)},
+                listOf(2, 8, 13),
+                5,
+                Way.DEC
+            ),
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(5,9), DOWN)},
+                listOf(1, 10, 13),
+                9,
+                Way.INC
+            ),
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(6,10), LEFT)},
+                listOf(1, 10),
+                9,
+                Way.INC
+            ),
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(2,9), UP)},
+                listOf(2, 8, 13),
+                9,
+                Way.DEC
+            ),
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(0,8), LEFT)},
+                listOf(8, 13),
+                15,
+                Way.INC
+            ),
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(2,13), UP)},
+                listOf(2, 8, 13),
+                13,
+                Way.DEC
+            ),
+            of(
+                { cube: Cube -> cube.getLanePosition(Point(0,15), RIGHT)},
+                listOf(0, 4, 8),
+                15,
+                Way.DEC
+            ),
+        )
 
         @JvmStatic
         fun `basic movement`(): Stream<Arguments> = listOf(
