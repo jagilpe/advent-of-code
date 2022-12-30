@@ -9,35 +9,25 @@ fun firstTask(input: Sequence<String>): String =
 fun secondTask(input: Sequence<String>): String =
     input.runTaskWith(1000000000000L)
 
-private const val STEP = 1_000_000
+private const val STEP = 100_000
 
 private val zoneOffset = ZoneId.of("Europe/Berlin").rules.getOffset(LocalDateTime.now())
 
 fun Sequence<String>.runTaskWith(rocks: Long): String {
     val movements: List<Movement> = first().parsed()
 
-    val start = System.currentTimeMillis() / 1000
+//    val start = System.currentTimeMillis() / 1000
 
-    println("Started: ${LocalDateTime.ofEpochSecond(start, 0, zoneOffset)}")
-    val last = generateSequence(Game(movements = movements)) {
-        it.next()
-    }
-        .onEachIndexed { index, game ->
-            if (index % STEP == 0) {
-                println("Stopped ${game.stoppedRocks} rocks in ${game.elapsed}s")
-                println("ETF: ${game.etf(rocks)}")
-            }
-//            println("stopped rocks: ${game.stoppedRocks}")
-//            println("tower height: ${game.towerHeight}")
-//            game.dump()
-////            println("stopped: ${game.stoppedRocks}")
-        }
-        .takeWhile {
-            it.stoppedRocks < rocks - 1 && it.found < 4
-        }
-        .last()
-    last.dump(lines = 30)
-    return last.towerHeight.toString()
+    val (squeezedRocks, droppedRocks, rocksPerCycle, cycle) = findRepeatingPattern(movements, rocks)
+
+    val cycles = (rocks - droppedRocks) / rocksPerCycle
+    val rest = (rocks - droppedRocks) % rocksPerCycle
+
+    val cyclesHeight = cycles * cycle.sum()
+    val restHeight = cycle.take(rest.toInt()).sum()
+
+    val result = squeezedRocks.height + cyclesHeight + restHeight
+    return result.toString()
 }
 
 fun String.parsed(): List<Movement> =
@@ -49,39 +39,197 @@ fun String.parsed(): List<Movement> =
         }
     }
 
+
+private const val BOARD_WIDTH: Int = 7
+
+fun Rock.position(squeezedRocks: SqueezedRocks): RockPosition =
+    this.pos(squeezedRocks.height + 3)
+
+fun RockPosition.move(movement: Movement, squeezedRocks: SqueezedRocks): RockPosition =
+    push(movement, squeezedRocks).drop(squeezedRocks)
+
+private fun RockPosition.push(movement: Movement, squeezedRocks: SqueezedRocks): RockPosition =
+    when (movement) {
+        is Left -> copy(point = point.copy(x = point.x - 1))
+        is Right -> copy(point = point.copy(x = point.x + 1))
+    }
+        .let { if (it.valid(squeezedRocks)) it else this }
+
+private fun RockPosition.drop(squeezedRocks: SqueezedRocks): RockPosition =
+    copy(point = point.copy(y = maxOf(point.y - 1, 0L)), stopped = point.y == 0L)
+        .let { if (it.valid(squeezedRocks)) it else copy(stopped = true) }
+        .also { if (it.point.y < squeezedRocks.minY) throw IllegalStateException("Rock should not go through the squeezed rocks") }
+
+private fun RockPosition.valid(squeezedRocks: SqueezedRocks): Boolean =
+    (point.x in 0..(BOARD_WIDTH - rock.width)) && !this.overlaps(squeezedRocks)
+
+data class CycleResult(
+    val squeezedRocks: SqueezedRocks,
+    val droppedRocks: Long,
+    val rocksPerCycle: Long,
+    val cycleIncrements: List<Long>,
+)
+
+fun findRepeatingPattern(
+    movements: List<Movement>,
+    maxDroppedRocks: Long,
+): CycleResult {
+    tailrec fun go(
+        currentRock: RockPosition,
+        nextRocks: List<Rock>,
+        nextMovements: List<Movement>,
+        squeezedRocks: SqueezedRocks,
+        droppedRocks: Long,
+        cycleDetector: CycleDetector,
+    ): CycleResult =
+        when {
+            currentRock.stopped -> {
+                if (droppedRocks % 100 == 0L) {
+                    println("${LocalDateTime.now()} - droppedRocks: $droppedRocks")
+                }
+                val previousHeight = squeezedRocks.height
+                val newSqueezedRocks = squeezedRocks.add(currentRock)
+                val newNextRocks = nextRocks.ifEmpty { Rock.orderedRocks }
+                val newCurrentRock = newNextRocks.first().position(newSqueezedRocks)
+                val newCycleDetector = cycleDetector.add(previousHeight, newSqueezedRocks.height)
+                val cycle = newCycleDetector.cycle()
+                if (cycle != null) {
+                    CycleResult(squeezedRocks, droppedRocks, cycle.first, cycle.second)
+                } else {
+                    go(
+                        currentRock = newCurrentRock,
+                        nextRocks = newNextRocks.drop(1),
+                        nextMovements = nextMovements,
+                        squeezedRocks = newSqueezedRocks,
+                        droppedRocks = droppedRocks + 1,
+                        cycleDetector = newCycleDetector,
+                    )
+                }
+            }
+
+            else -> {
+                val newNextMovements = nextMovements.ifEmpty { movements }
+                go(
+                    currentRock = currentRock.push(newNextMovements.first(), squeezedRocks).drop(squeezedRocks),
+                    nextRocks = nextRocks,
+                    nextMovements = newNextMovements.drop(1),
+                    squeezedRocks = squeezedRocks,
+                    droppedRocks = droppedRocks,
+                    cycleDetector = cycleDetector,
+                )
+            }
+        }
+
+    val squeezedRocks = SqueezedRocks()
+
+    return go(
+        currentRock = Rock.orderedRocks.first().position(squeezedRocks),
+        nextRocks = Rock.orderedRocks.drop(1),
+        nextMovements = movements,
+        squeezedRocks = squeezedRocks,
+        droppedRocks = 1,
+        cycleDetector = CycleDetector(),
+    )
+}
+
+private const val CYCLE_COUNT = 20
+private const val GAP = 100_000
+
+class CycleDetector {
+    private val nodes: MutableList<Long> = mutableListOf()
+    private var minCycle = 5
+
+    fun add(previousHeight: Long, newHeight: Long): CycleDetector {
+        nodes.add(newHeight - previousHeight)
+        return this
+    }
+
+    fun cycle(): Pair<Long, List<Long>>? =
+        if (nodes.size >= GAP + (minCycle * CYCLE_COUNT)) {
+            val cycle = (nodes.size - GAP) / CYCLE_COUNT
+            val cycleList = nodes.drop(nodes.size - cycle * CYCLE_COUNT).chunked(cycle)
+            if (cycleList.areEqual()) {
+                cycle.toLong() to cycleList.first()
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+
+    private fun List<List<Long>>.areEqual(): Boolean {
+        tailrec fun go(acc: List<List<Long>>): Boolean =
+            if (acc.isEmpty() || acc.first().isEmpty()) {
+                true
+            } else {
+                val (next, rest) = acc.decomposed
+                if (next.all { it == next.first() }) {
+                    go(rest)
+                } else {
+                    false
+                }
+            }
+
+        return go(this)
+    }
+
+    private val List<List<Long>>.decomposed: Pair<List<Long>, List<List<Long>>>
+        get() = fold(Pair(emptyList(), emptyList())) { acc, next ->
+            Pair(
+                acc.first + next.first(),
+                acc.second.plus<List<Long>>(next.drop(1)),
+            )
+        }
+
+}
+
+fun dump(current: RockPosition, squeezedRocks: SqueezedRocks): String {
+    val highestY = maxOf(current.maxY, squeezedRocks.height, 4)
+    val toLine = squeezedRocks.minY - 1
+    val pointsInMovement = current.points
+    return (highestY downTo toLine)
+        .joinToString("\n") { y ->
+            if (y > -1) {
+                (0L..6).joinToString(separator = "", prefix = "|", postfix = "|") { x ->
+                    when {
+                        Point(x, y) in pointsInMovement -> "@"
+                        Point(x, y) in squeezedRocks.points -> "#"
+                        else -> "."
+                    }
+                }
+            } else {
+                "+-------+\n"
+            }
+        }
+        .also(::println)
+}
+
 data class Game(
     val movements: List<Movement>,
-    var movementIndex: Int = 0,
-    val rocks: List<Rock> = Rock.orderedRocks,
-    var rockIndex: Int = 0,
-    var movingRock: RockPosition? = null,
+    val nextMovements: List<Movement> = movements,
+    val rocksOrder: List<Rock> = Rock.orderedRocks,
+    val nextRocks: List<Rock> = rocksOrder,
+    val movingRock: RockPosition? = null,
     val squeezedRocks: SqueezedRocks = SqueezedRocks(),
     val boardWidth: Int = 7,
-    var stoppedRocks: Long = 0,
+    val stoppedRocks: Long = 0,
     val start: Long = System.currentTimeMillis() / 1000,
-    var lastStoppedRockOn: Long = Long.MAX_VALUE / 1000,
-    var found: Int = 0,
+    val lastStoppedRockOn: Long = Long.MAX_VALUE / 1000,
 ) {
-    private val rocksSize: Int = rocks.size
-    private val movementsSize: Int = movements.size
-
     fun etf(rocks: Long): LocalDateTime =
         try {
             LocalDateTime.ofEpochSecond(lastStoppedRockOn + (elapsed * (rocks / stoppedRocks)), 0, zoneOffset)
         } catch (ex: Exception) {
-            ex.printStackTrace()
             LocalDateTime.now()
         }
 
-    val elapsed: Long
-        get() = lastStoppedRockOn - start
+    val elapsed: Long by lazy { lastStoppedRockOn - start }
 
-//    override fun toString(): String = """
-//        |movementIndex: $movementIndex
-//        |movingRocke: $movingRock
-//        |rockIndex: $rockIndex
-//        |squeezedRocks: $squeezedRocks
-//        |stoppedRocks: $stoppedRocks
+//    override fun toString(): String = """Game(
+//        |nextMovements: $nextMovements
+//        |nextRocks: $nextRocks
+//        |rocksPositions: $rocksPositions
+//        |)
 //    """.trimMargin()
 
     override fun toString(): String {
@@ -96,7 +244,7 @@ data class Game(
         return (highestY downTo toLine)
             .joinToString(separator = "\n", prefix = header?.let { "$it\n" } ?: "") { y ->
                 if (y > -1) {
-                    (0..6).joinToString(separator = "", prefix = "|", postfix = "|") { x ->
+                    (0L..6).joinToString(separator = "", prefix = "|", postfix = "|") { x ->
                         when {
                             Point(x, y) in pointsInMovement -> "@"
                             Point(x, y) in squeezedRocks.points -> "#"
@@ -110,82 +258,44 @@ data class Game(
             .also(::println)
     }
 
-    val towerHeight: Int
-        get() = squeezedRocks.height
+    val towerHeight: Long by lazy { squeezedRocks.height }
 
-    fun next(): Game = also {
-        val currentRock = movingRock
+
+    fun next(): Game =
         when {
-            currentRock == null -> {
-                val (nextIndex, nextRock) = nextRock(squeezedRocks)
-                rockIndex = nextIndex
-                movingRock = nextRock
+            movingRock == null -> copy(
+                nextMovements = nextMovements,
+                nextRocks = nextRocks.drop(1).ifEmpty { rocksOrder },
+                movingRock = nextRock(squeezedRocks),
+            )
+
+            movingRock.stopped -> {
+                val newSqueezedRocks = squeezedRocks.add(movingRock)
+                copy(
+                    nextMovements = nextMovements,
+                    nextRocks = nextRocks.drop(1).ifEmpty { rocksOrder },
+                    movingRock = nextRock(newSqueezedRocks),
+                    squeezedRocks = newSqueezedRocks,
+                    stoppedRocks = stoppedRocks + 1,
+                    lastStoppedRockOn = System.currentTimeMillis() / 1000
+                )
             }
 
-            currentRock.stopped -> {
-                if (rockIndex == 0 && movementIndex == 0) {
-                    found += 1
-                    dump(lines = 20)
-                }
-                squeezedRocks.add(currentRock)
-                val (nextIndex, nextRock) = nextRock(squeezedRocks)
-                rockIndex = nextIndex
-                movingRock = nextRock
-                stoppedRocks += 1
-                lastStoppedRockOn = System.currentTimeMillis() / 1000
-            }
-
-            else -> {
-                val movement = movements[movementIndex]
-                movementIndex = (movementIndex + 1) % movementsSize
-                currentRock.push(movement).drop()
-//                if (currentRock.stopped) {
-//                    println("rock stopped, movement index: $movementIndex, rock index: $rockIndex")
-//                }
-                if (movementIndex == 0 && currentRock.stopped) {
-                    println("movement index: $movementIndex, rock index: $rockIndex, rock stopped: ${currentRock.stopped}")
-                }
-            }
-        }
-    }
-
-    private fun nextRock(squeezedRocks: SqueezedRocks): Pair<Int, RockPosition> {
-        val nextRockId = (rockIndex + 1) % rocksSize
-        return nextRockId to rocks[rockIndex].pos(squeezedRocks.height + 3)
-    }
-
-    private fun RockPosition.push(movement: Movement): RockPosition = also {
-        val oldPoint = point
-        point = when (movement) {
-            is Left -> point.copy(x = point.x - 1)
-            is Right -> point.copy(x = point.x + 1)
+            else -> copy(
+                nextMovements = nextMovements.drop(1).ifEmpty { movements },
+//                movingRock = movingRock.push(nextMovements.first()).drop(),
+            )
         }
 
-        if (!valid) {
-            point = oldPoint
-        }
-    }
-
-    private fun RockPosition.drop(): RockPosition = also {
-        val oldPoint = point
-        point = point.copy(y = point.y - 1)
-
-        if (!valid) {
-            point = oldPoint
-            stopped = true
-        }
-    }
-
-    private val RockPosition.valid: Boolean
-        get() =
-            (point.x in 0..(boardWidth - rock.width)) && point.y >= 0 && !this.overlaps(squeezedRocks)
+    private fun nextRock(squeezedRocks: SqueezedRocks): RockPosition =
+        nextRocks.first().pos(squeezedRocks.height + 3)
 
 }
 
 data class RockPosition(
     val rock: Rock,
-    var point: Point,
-    var stopped: Boolean = false,
+    val point: Point,
+    val stopped: Boolean = false,
 ) {
     val maxY = point.y + rock.height - 1
 
@@ -194,8 +304,9 @@ data class RockPosition(
     fun overlaps(other: SqueezedRocks): Boolean =
         points.intersect(other.points).isNotEmpty()
 
-    val points: Set<Point>
-        get() = rock.points.map { (x, y) -> Point(point.x + x, point.y + y) }.toSet()
+    val points: Set<Point> by lazy {
+        rock.points.map { (x, y) -> Point(point.x + x, point.y + y) }.toSet()
+    }
 }
 
 sealed interface Movement
@@ -209,16 +320,16 @@ object Right : Movement {
 }
 
 data class Point(
-    val x: Int,
-    val y: Int,
+    val x: Long,
+    val y: Long,
 )
 
 interface Rock {
     val points: Set<Point>
-    val height: Int
-    val width: Int
+    val height: Long
+    val width: Long
 
-    fun heightAt(x: Int): Int
+    fun heightAt(x: Long): Long
 
     companion object {
         val orderedRocks: List<Rock> = listOf(
@@ -230,9 +341,9 @@ interface Rock {
         )
     }
 
-    fun pos(x: Int, y: Int): RockPosition = RockPosition(this, Point(x, y))
+    fun pos(x: Long, y: Long): RockPosition = RockPosition(this, Point(x, y))
 
-    fun pos(y: Int): RockPosition = RockPosition(this, Point(2, y))
+    fun pos(y: Long): RockPosition = RockPosition(this, Point(2, y))
 }
 
 object HorizontalLine : Rock {
@@ -243,10 +354,10 @@ object HorizontalLine : Rock {
         Point(3, 0),
     )
 
-    override val height: Int = 1
-    override val width: Int = 4
-    override fun heightAt(x: Int): Int =
-        if (x in 0..3) 1 else Int.MIN_VALUE
+    override val height: Long = 1L
+    override val width: Long = 4L
+    override fun heightAt(x: Long): Long =
+        if (x in 0..3) 1 else Long.MIN_VALUE
 
     override fun toString(): String = "_"
 }
@@ -260,14 +371,14 @@ object Plus : Rock {
         Point(1, 2),
     )
 
-    override val height: Int = 3
-    override val width: Int = 3
-    override fun heightAt(x: Int): Int =
+    override val height: Long = 3
+    override val width: Long = 3
+    override fun heightAt(x: Long): Long =
         when (x) {
-            0 -> 2
-            1 -> 3
-            2 -> 2
-            else -> Int.MIN_VALUE
+            0L -> 2
+            1L -> 3
+            2L -> 2
+            else -> Long.MIN_VALUE
         }
 
     override fun toString(): String = "+"
@@ -282,14 +393,14 @@ object InvertedL : Rock {
         Point(2, 2),
     )
 
-    override val height: Int = 3
-    override val width: Int = 3
-    override fun heightAt(x: Int): Int =
+    override val height: Long = 3
+    override val width: Long = 3
+    override fun heightAt(x: Long): Long =
         when (x) {
-            0 -> 1
-            1 -> 2
-            2 -> 3
-            else -> Int.MIN_VALUE
+            0L -> 1
+            1L -> 2
+            2L -> 3
+            else -> Long.MIN_VALUE
         }
 
     override fun toString(): String = "L"
@@ -303,12 +414,12 @@ object VerticalLine : Rock {
         Point(0, 3),
     )
 
-    override val height: Int = 4
-    override val width: Int = 1
-    override fun heightAt(x: Int): Int =
+    override val height: Long = 4
+    override val width: Long = 1
+    override fun heightAt(x: Long): Long =
         when (x) {
-            0 -> 4
-            else -> Int.MIN_VALUE
+            0L -> 4
+            else -> Long.MIN_VALUE
         }
 
     override fun toString(): String = "|"
@@ -322,13 +433,13 @@ object Square : Rock {
         Point(1, 1),
     )
 
-    override val height: Int = 2
-    override val width: Int = 2
-    override fun heightAt(x: Int): Int =
+    override val height: Long = 2
+    override val width: Long = 2
+    override fun heightAt(x: Long): Long =
         when (x) {
-            0 -> 2
-            1 -> 2
-            else -> Int.MIN_VALUE
+            0L -> 2
+            1L -> 2
+            else -> Long.MIN_VALUE
         }
 
     override fun toString(): String = "*"
@@ -338,40 +449,27 @@ data class SqueezedRocks(
     override val points: MutableSet<Point> = mutableSetOf(),
 ) : Rock {
 
-    fun add(other: RockPosition) =
-        (points + other.points)
-            .let { allPoints ->
-                val newPoints = if (allPoints.size > 500) {
-                    val limit = allPoints.maxY - 100
-                    val newPoints = allPoints.filter { it.y >= limit }.toSet()
-//                    println("removed: ${allPoints.size - newPoints.size}, new size: ${newPoints.size}")
-                    newPoints
-                } else {
-                    allPoints
-                }
-                points.clear()
-                points.addAll(newPoints)
-            }
+    constructor(points: Collection<Point>) : this(mutableSetOf<Point>().also { it.addAll(points) })
 
-    override val height: Int
-        get() = points.maxY
+    fun highestLines(count: Int): Set<Point> =
+        points.filter { it.y > maxY - count }.toSet()
 
-    private val Set<Point>.maxY: Int
-        get() = maxOfOrNull { it.y + 1 } ?: 0
+    override val height: Long
+        get() = maxY + 1
+    override val width: Long
+        get() = throw UnsupportedOperationException()
+    var minY: Long = points.minOfOrNull { it.y }?.toLong() ?: -1L
+    private var maxY: Long = points.maxOfOrNull { it.y }?.toLong() ?: -1L
 
+    fun add(other: RockPosition): SqueezedRocks {
+        points.addAll(other.points)
+        maxY = points.maxOfOrNull { it.y }?.toLong() ?: -1L
+        points.removeIf { it.y < maxY - 100 }
+        minY = points.minOfOrNull { it.y } ?: 0L
 
-    override val width: Int
-        get() = points.maxOfOrNull { it.x }
-            ?.let { maxX ->
-                points.minOf { it.x }
-                    ?.let { minX -> maxX - minX + 1 }
-            }
-            ?: 0
-
-    override fun heightAt(x: Int): Int =
-        points.filter { it.x == x }.maxOfOrNull { it.y } ?: Int.MIN_VALUE
-
-    companion object {
-        fun of(points: Set<Point>): SqueezedRocks = SqueezedRocks(points.toMutableSet())
+        return this
     }
+
+    override fun heightAt(x: Long): Long =
+        points.filter { it.x == x }.maxOfOrNull { it.y } ?: Long.MIN_VALUE
 }
