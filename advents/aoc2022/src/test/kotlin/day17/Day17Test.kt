@@ -69,11 +69,6 @@ class Day17Test : BaseTest() {
         assertThat(one.overlaps(SqueezedRocks(other.points))).isEqualTo(expected)
     }
 
-    @Test
-    fun `should detect a cycle`() {
-
-    }
-
     companion object {
         const val example: String = ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"
         private val initialState = Game(movements = example.parsed())
