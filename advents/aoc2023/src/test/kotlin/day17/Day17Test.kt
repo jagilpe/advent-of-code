@@ -13,7 +13,7 @@ class Day17Test : BaseTest() {
     override val result2: String
         get() = TODO()
 
-    override val input: String = "/day04/input"
+    override val input: String = "/day17/input"
 
     override val run1: Executable = ::firstTask
 
