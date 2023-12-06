@@ -2,20 +2,59 @@ package com.gilpereda.aoc2022.day06
 
 import com.gilpereda.aoc2022.BaseTest
 import com.gilpereda.aoc2022.Executable
+import com.gilpereda.aoc2022.day05.firstTask
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
-class Day06Test : BaseTest() {
-    override val example: String
-        get() = TODO()
+class Day06Test {
+    val example: String = """
+        Time:      7  15   30
+        Distance:  9  40  200
+    """.trimIndent()
 
-    override val result1: String
-        get() = TODO()
+    @Test
+    fun `should work with the example 1`() {
+        val input = listOf(
+            Race(7, 9),
+            Race(15, 40),
+            Race(30, 200),
+        )
 
-    override val result2: String
-        get() = TODO()
+        assertThat(firstTask(input)).isEqualTo(288)
+    }
 
-    override val input: String = "/day06/input"
+    @Test
+    fun `should get the first result`() {
+        val input = listOf(
+            Race(55, 246),
+            Race(82, 1441),
+            Race(64, 1012),
+            Race(90, 1111),
+        )
 
-    override val run1: Executable = ::firstTask
+        val result = firstTask(input)
+        assertThat(result).isGreaterThan(0)
+        println("result: $result")
+    }
 
-    override val run2: Executable = ::secondTask
+
+    @Test
+    fun `should work with the example 2`() {
+        val input = listOf(
+            Race(71530, 940200),
+        )
+
+        assertThat(firstTask(input)).isEqualTo(71503)
+    }
+
+    @Test
+    fun `should get the second result`() {
+        val input = listOf(
+            Race(55826490, 246144110121111),
+        )
+
+        val result = firstTask(input)
+        assertThat(result).isGreaterThan(0)
+        println("result: $result")
+    }
 }
