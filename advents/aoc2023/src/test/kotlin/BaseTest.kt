@@ -32,16 +32,16 @@ abstract class BaseTest {
     }
 
     @Test
-    fun `should work with the example - part 2`() {
-        check(example2 to result2, run2)
-    }
-
-    @Test
     fun `should return the result - part 1`() {
         val result = run1(inputSequence)
 
         assertThat(result).isNotNull
         println("Result: $result")
+    }
+
+    @Test
+    fun `should work with the example - part 2`() {
+        check(example2 to result2, run2)
     }
 
     @Test
