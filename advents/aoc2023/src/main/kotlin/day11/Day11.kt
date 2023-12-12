@@ -1,6 +1,6 @@
 package com.gilpereda.aoc2022.day11
 
-import com.gilpereda.aoc2022.utils.Point
+import com.gilpereda.aoc2022.utils.geometry.Point
 
 /**
  * first try 9766526

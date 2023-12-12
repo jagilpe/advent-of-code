@@ -1,22 +1,55 @@
 package com.gilpereda.aoc2022.utils
 
-typealias TwoDimensionalMap<T> = Map<Int, Map<Int, T>>
+import com.gilpereda.aoc2022.utils.geometry.Point
 
-fun <T> TwoDimensionalMap<T>.dump(transform: (T) -> Char): String =
+typealias TwoDimensionalMap<T> = Map<Long, Map<Long, T>>
+
+fun <T> List<String>.toTwoDimensionalMapIndexed(transform: (x: Long, y: Long, c: Char) -> T): TwoDimensionalMap<T> =
+    mapIndexed { y, line ->
+        y.toLong() to line.mapIndexed { x, c ->
+            x.toLong() to transform(x.toLong(), y.toLong(), c)
+        }.toMap()
+    }.toMap()
+
+fun <T> List<String>.toTwoDimensionalMapIndexed(transform: (point: Point, c: Char) -> T): TwoDimensionalMap<T> =
+    toTwoDimensionalMapIndexed { x, y, c -> transform(Point(x, y), c) }
+
+fun <T> List<String>.toTwoDimensionalMap(transform: (c: Char) -> T): TwoDimensionalMap<T> =
+    toTwoDimensionalMapIndexed { _, _, c -> transform(c) }
+
+fun <T> TwoDimensionalMap<T>.dump(transform: (T) -> String): String =
     values.joinToString(
         separator = "\n",
         transform = { it.values.joinToString(separator = "") { cell -> transform(cell).toString() } }
     )
 
-fun <A, B> TwoDimensionalMap<A>.map2DValues(transform: (x: Int, y: Int, value: A) -> B): TwoDimensionalMap<B> =
+fun <A, B> TwoDimensionalMap<A>.map2DValuesIndexed(transform: (x: Long, y: Long, value: A) -> B): TwoDimensionalMap<B> =
     mapValues { (y, line) -> line.mapValues { (x, value) -> transform(x, y, value) } }
+
+fun <A, B> TwoDimensionalMap<A>.map2DValuesIndexed(transform: (p: Point, value: A) -> B): TwoDimensionalMap<B> =
+    map2DValuesIndexed { x, y, value -> transform(Point(x, y), value) }
+
+fun <A, B> TwoDimensionalMap<A>.map2DValues(transform: (value: A) -> B): TwoDimensionalMap<B> =
+    map2DValuesIndexed { _, _, value -> transform(value) }
+
+fun <T> TwoDimensionalMap<T>.valuesToList(): List<T> =
+    flatMap { (_, line) -> line.map { (_, value) -> value } }
+
+fun <T> TwoDimensionalMap<T>.valuesToListIndexed(): List<Pair<Point, T>> =
+    flatMap { (y, line) -> line.map { (x, value) -> Point(x, y) to value } }
 
 fun <T> TwoDimensionalMap<T>.allMatch(predicate: (T) -> Boolean): Boolean =
     values.all { it.values.all { cell -> predicate(cell) } }
 
-fun <T> TwoDimensionalMap<T>.setValue(x: Int, y: Int, value: T): TwoDimensionalMap<T> =
-    map2DValues { prevX, prevY, previous -> if (x == prevX && y == prevY) value else previous }
+fun <T> TwoDimensionalMap<T>.setValue(x: Long, y: Long, value: T): TwoDimensionalMap<T> =
+    map2DValuesIndexed { prevX, prevY, previous -> if (x == prevX && y == prevY) value else previous }
 
-fun <T> TwoDimensionalMap<T>.getNullable(x: Int, y: Int): T? = get(y)?.get(x)
+fun <T> TwoDimensionalMap<T>.getNullable(x: Long, y: Long): T? = get(y)?.get(x)
 
-fun <T> TwoDimensionalMap<T>.getNotNullable(x: Int, y: Int): T = getNullable(x, y)!!
+fun <T> TwoDimensionalMap<T>.getNotNullable(x: Long, y: Long): T = getNullable(x, y)!!
+
+val <T> TwoDimensionalMap<T>.height: Long
+    get() = values.size.toLong()
+
+val <T> TwoDimensionalMap<T>.width: Long
+    get() = values.first().size.toLong()
