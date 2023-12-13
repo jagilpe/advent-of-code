@@ -1,15 +1,23 @@
 package com.gilpereda.aoc2022.day12
 
+import java.time.Duration
+import java.time.Instant
+
 fun firstTask(input: Sequence<String>): String =
     input.parsed(1)
         .sumOf { it.matching() }.toString()
 
-fun secondTask(input: Sequence<String>): String =
-    input
+fun secondTask(input: Sequence<String>): String {
+    val start = Instant.now()
+    return input
         .parsed(5)
-        .sumOf { it.matching().also { println("matching: $it") } }
+        .mapIndexed { index, springConditions ->
+            val ellapsed = Duration.between(start, Instant.now())
+            springConditions.matching().also { println("$index - $ellapsed - matching: $it") }
+        }
+        .sum()
         .toString()
-
+}
 
 fun unfold(line: String, count: Int): String =
     try {
@@ -22,14 +30,20 @@ fun unfold(line: String, count: Int): String =
     }
 
 fun Sequence<String>.parsed(unfold: Int): Sequence<SpringConditions> =
-    map { line -> SpringConditions(line, unfold) }
+    map { line ->
+        List(unfold) { it + 1 }
+            .fold(SpringConditions(line, 1)) { springConditions, i ->
+                springConditions.nextLevel()
+            }
+        SpringConditions(line, unfold) }
 
 data class SpringConditions(
     val line: String,
     val unfold: Int,
+    val previousMatches: Map<Int, Long> = mapOf()
 ) {
-    private val springs: String
-    private val expected: List<Int>
+    private val unfoldedSprings: String
+    private val unfoldedExpected: List<Int>
 
     private val originalSprings: String
     private val originalExpected: List<Int>
@@ -43,15 +57,14 @@ data class SpringConditions(
         this.originalExpected = originalExpected.split(",").mapNotNull { it.toIntOrNull() }
         this.originalExpectedSize = this.originalExpected.size
         val (springs, expectedStr) = unfold(line, unfold).split(" ")
-        this.springs = springs
-        this.expected = expectedStr.split(",").map { it.toInt() }
+        this.unfoldedSprings = springs
+        this.unfoldedExpected = expectedStr.split(",").map { it.toInt() }
     }
 
-    private val maxExpected = expected.max()
-    private val expectedCount = expected.size
-    private val expectedSprings = expected.sum()
+    private val expectedCount = unfoldedExpected.size
+    private val expectedSprings = unfoldedExpected.sum()
 
-    private val starts = List(expected.size) { i -> expected.take(i + 1) }
+    private val starts = List(unfoldedExpected.size) { i -> unfoldedExpected.take(i + 1) }
 
     private val previousCount: Long by lazy {
         SpringConditions(line, unfold - 1).matching()
@@ -59,73 +72,60 @@ data class SpringConditions(
 
     fun matching(): Long =
         sequence {
-            findMatching(
-                Conditions(springs)
-            )
+            findMatching(Conditions(unfoldedSprings))
         }.fold(0L) { acc, next -> acc + next }
 //            .also { println("Matching: $it for unfold: $unfold") }
 
     private suspend fun SequenceScope<Long>.findMatching(base: Conditions) {
-        base.next().forEach { yieldNext(it) }
-    }
-
-    private suspend fun SequenceScope<Long>.yieldNext(next: Conditions) {
-        if (next.notFinished) {
-            if (next.isPartlyFinished) {
-                yield(previousCount)
-            } else if (next.canMatch()) {
-                findMatching(next)
+        base.next().forEach { next ->
+            if (next.notFinished) {
+                if (next.isPartlyFinishedMatching) {
+//                println("Matched partly finished: $unfold")
+                    yield(previousCount)
+                } else if (next.canMatch()) {
+                    findMatching(next)
+                }
+            } else {
+                if (next.matches(unfoldedExpected)) yield(1L)
             }
-        } else {
-            if (next.matches(expected)) yield(1L)
         }
     }
-
-    private fun Conditions.canMatch(): Boolean {
-        return notFullConditions.noneNotExceedMaxExpected(maxExpected) &&
-                rawConditions.doesNotExceedExpectedCount(expectedCount) &&
-                rawConditions.reachesTheExpectedCount(expectedSprings) &&
-                (knownConditions.isEmpty() || knownConditions.startMatches())
-    }
-
-    private fun List<Int>.startMatches(): Boolean =
-        this == starts[size - 1]
-
-    private fun List<Int>.noneNotExceedMaxExpected(maxExpected: Int): Boolean =
-        none { it > maxExpected }
-
-    private fun List<String>.reachesTheExpectedCount(expectedCount: Int): Boolean =
-        sumOf { it.count() } >= expectedCount
-
-    fun List<Int>.doesNotHaveTooManyMax(maxExpected: Int, maxCount: Int): Boolean =
-        count { it == maxExpected } <= maxCount
-
-    private fun List<String>.doesNotExceedExpectedCount(expectedCount: Int): Boolean =
-        count { it.contains('#') } <= expectedCount
 
     inner class Conditions(val conditions: String, ) {
-        val rawConditions: List<String> by lazy { conditions.split(".").filter { it.isNotBlank() } }
-        val notFullConditions: List<Int> by lazy {
-            rawConditions.flatMap { it.split("?") }.filter { it.isNotBlank() }.map { it.count() }
-        }
+        val summary = Summary.from(conditions)
+
+        val rawConditions: List<String> = conditions.split(".").filter { it.isNotBlank() }
+        val condition: List<Int> = rawConditions.map { it.count() }
+
         val knownConditions: List<Int> by lazy { rawConditions.takeWhile { !it.contains("?") }.map { it.count() } }
 
-        val condition: List<Int> by lazy {
-            conditions.split(".")
-                .filter { it.isNotBlank() }
-                .map { it.count() }
-        }
+        val notFinished: Boolean = conditions.contains("?")
 
-        val notFinished: Boolean by lazy { conditions.contains("?") }
-
-        val isPartlyFinished: Boolean by lazy {
-            val conditionsLength = conditions.length
-    //        false
+        val isPartlyFinishedMatching: Boolean by lazy {
             unfold > 1 &&
                     !conditions.substring(0..originalSpringsLength - 1).contains("?") &&
                     conditions[originalSpringsLength] == '.' &&
                     knownConditions == originalExpected
         }
+
+        fun canMatch(): Boolean {
+            return doesNotExceedExpectedSprings() &&
+                    doesNotExceedExpectedCount() &&
+                    canReachTheExpectedCount() &&
+                    knownConditionsStartMatches()
+        }
+
+        private fun knownConditionsStartMatches(): Boolean =
+            knownConditions.isEmpty() || knownConditions == starts[knownConditions.size - 1]
+
+        private fun doesNotExceedExpectedSprings(): Boolean =
+            summary.filled <= expectedSprings
+
+        private fun canReachTheExpectedCount(): Boolean =
+            summary.filled + summary.pending >= expectedSprings
+
+        private fun doesNotExceedExpectedCount(): Boolean =
+            rawConditions.count { it.contains('#') } <= expectedCount
 
         fun next(): List<Conditions> =
             try {
@@ -138,6 +138,23 @@ data class SpringConditions(
             }
 
         fun matches(expected: List<Int>): Boolean = condition == expected
+    }
+}
+
+data class Summary(
+    val empty: Int = 0,
+    val filled: Int = 0,
+    val pending: Int = 0,
+) {
+    companion object {
+        fun from(line: String): Summary =
+            line.fold(Summary()) { acc, next ->
+                when (next) {
+                    '.' -> acc.copy(empty = acc.empty + 1)
+                    '#' -> acc.copy(filled = acc.filled + 1)
+                    else -> acc.copy(pending = acc.pending + 1)
+                }
+            }
     }
 }
 

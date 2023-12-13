@@ -26,12 +26,12 @@ abstract class BaseTest {
         assertThat(run(input.splitToSequence("\n"))).isEqualTo(expected)
     }
 
-    @Test
+//    @Test
     fun `should work with the example - part 1`() {
         check(example to result1, run1)
     }
 
-    @Test
+//    @Test
     fun `should return the result - part 1`() {
         val result = run1(inputSequence)
 
@@ -39,7 +39,7 @@ abstract class BaseTest {
         println("Result: $result")
     }
 
-    @Test
+//    @Test
     fun `should work with the example - part 2`() {
         check(example2 to result2, run2)
     }

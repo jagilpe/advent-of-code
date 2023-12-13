@@ -19,6 +19,10 @@ class Day12Test : BaseTest() {
         ?###???????? 3,2,1
     """.trimIndent()
 
+//    override val example: String = """
+//        ?###???????? 3,2,1
+//    """.trimIndent()
+
     override val result1: String = "21"
 
     override val result2: String = "525152"
