@@ -48,8 +48,28 @@ fun <T> TwoDimensionalMap<T>.getNullable(x: Long, y: Long): T? = get(y)?.get(x)
 
 fun <T> TwoDimensionalMap<T>.getNotNullable(x: Long, y: Long): T = getNullable(x, y)!!
 
+fun <T> TwoDimensionalMap<T>.getNotNullable(point: Point): T = getNotNullable(point.x, point.y)
+
+fun TwoDimensionalMap<*>.indices(): List<Point> = (0 until height).flatMap { y -> (0 until width).map { x -> Point(x, y) } }
+
 val <T> TwoDimensionalMap<T>.height: Long
     get() = values.size.toLong()
 
 val <T> TwoDimensionalMap<T>.width: Long
     get() = values.first().size.toLong()
+
+val <T> TwoDimensionalMap<T>.transpose: TwoDimensionalMap<T>
+    get() = entries.fold(mapOf()) { acc, (y, row) ->
+        row.entries.fold(acc) { acc2, (x, cell) ->
+            acc2 + mapOf(x to ((acc2[x] ?: mapOf()) + mapOf(y to cell)))
+        }
+    }
+
+fun <T, B> TwoDimensionalMap<T>.rows(transform: (Collection<T>) -> B): List<B> =
+    values.map { transform(it.values) }
+
+fun <T, B> TwoDimensionalMap<T>.columns(transform: (Collection<T>) -> B): List<B> =
+    transpose.values.map { transform(it.values) }
+
+fun <T> TwoDimensionalMap<T>.set(point: Point, newValue: T): TwoDimensionalMap<T> =
+    map2DValuesIndexed { xy, value -> if (xy == point) newValue else value }
