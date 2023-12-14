@@ -44,7 +44,7 @@ abstract class BaseTest {
         check(example2 to result2, run2)
     }
 
-//    @Test
+    @Test
     fun `should return the result - part 2`() {
         val result = run2(inputSequence)
 

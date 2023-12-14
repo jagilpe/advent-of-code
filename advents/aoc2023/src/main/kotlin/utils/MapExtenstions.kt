@@ -17,6 +17,9 @@ fun <T> List<String>.toTwoDimensionalMapIndexed(transform: (point: Point, c: Cha
 fun <T> List<String>.toTwoDimensionalMap(transform: (c: Char) -> T): TwoDimensionalMap<T> =
     toTwoDimensionalMapIndexed { _, _, c -> transform(c) }
 
+fun <T> String.toTwoDimensionalMap(transform: (c: Char) -> T): TwoDimensionalMap<T> =
+    split("\n").toTwoDimensionalMap(transform)
+
 fun <T> TwoDimensionalMap<T>.dump(transform: (T) -> String): String =
     values.joinToString(
         separator = "\n",

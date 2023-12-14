@@ -8,19 +8,18 @@ enum class Orientation {
 }
 
 
-
 fun <T> TwoDimensionalMap<T>.transform(orientation: Orientation): TwoDimensionalMap<T> =
     when (orientation) {
         Orientation.NORTH -> transpose()
-        Orientation.SOUTH -> reflect().transpose()
-        Orientation.EAST -> this
-        Orientation.WEST -> reflect()
+        Orientation.SOUTH -> transpose().reflect()
+        Orientation.WEST -> this
+        Orientation.EAST -> reflect()
     }
 
 fun <T> TwoDimensionalMap<T>.transformBack(orientation: Orientation): TwoDimensionalMap<T> =
     when (orientation) {
         Orientation.NORTH -> transpose()
-        Orientation.SOUTH -> transpose().reflect()
-        Orientation.EAST -> this
-        Orientation.WEST -> reflect()
+        Orientation.SOUTH -> reflect().transpose()
+        Orientation.WEST -> this
+        Orientation.EAST -> reflect()
     }
