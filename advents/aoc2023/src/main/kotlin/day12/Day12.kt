@@ -3,11 +3,15 @@ package com.gilpereda.aoc2022.day12
 import java.time.Duration
 import java.time.Instant
 
-fun firstTask(input: Sequence<String>): String =
+fun firstTaskOriginal(input: Sequence<String>): String =
     input.parsed(1)
         .sumOf { it.matching() }.toString()
 
-fun secondTask(input: Sequence<String>): String {
+fun firstTask(input: Sequence<String>): String =
+    input.parsed2(1)
+        .sumOf { it.matches() }.toString()
+
+fun secondTaskOriginal(input: Sequence<String>): String {
     val start = Instant.now()
     return input
         .parsed(5)
@@ -19,11 +23,14 @@ fun secondTask(input: Sequence<String>): String {
         .toString()
 }
 
+fun secondTask(input: Sequence<String>): String =
+    input
+        .parsed2(5)
+        .sumOf { it.matches() }
+        .toString()
+
 fun Sequence<String>.parsed(unfold: Int): Sequence<SpringConditions> =
-    map { line ->
-        List(unfold - 1) { it + 1 }
-            .fold(SpringConditions(line, 1)) { springConditions, _ -> springConditions.nextLevel() }
-    }
+    map { line -> SpringConditions.forLine(line, unfold) }
 
 data class SpringConditions(
     private val line: String,
@@ -161,6 +168,12 @@ data class SpringConditions(
                 throw ex
             }
     }
+
+    companion object {
+        fun forLine(line: String, fold: Int): SpringConditions =
+            List(fold - 1) { it + 1 }
+                .fold(SpringConditions(line, 1)) { springConditions, _ -> springConditions.nextLevel() }
+    }
 }
 
 data class Summary(
@@ -184,31 +197,78 @@ typealias Index = Int
 typealias RemainingGroups = Int
 typealias Cache = MutableMap<Index, MutableMap<RemainingGroups, Long>>
 
-val target = setOf('?', '#')
+
+fun Sequence<String>.parsed2(unfold: Int): Sequence<Springs> =
+    map { line -> Springs.forLine(line, unfold) }
+
 
 class Springs(
-    val springs: String,
-    val groups: List<Int>,
+    private val springs: String,
+    private val groups: List<Int>,
 ) {
-    val cache: Cache = mutableMapOf()
+    private val cache: Cache = mutableMapOf()
+    private val springsLength = springs.length
+    private val notEmptyIndices = springs.mapIndexedNotNull { index, c -> if (c == '.') null else index }
 
-//    private fun solve(springs: String, groups: List<Int>, i: Int): Long =
-//        if (groups.isEmpty()) {
-//            if (springs.contains('#')) 0L else 1L
-//        } else {
-//            generateSequence(i + 1) { i + 1 }
-//                .firstOrNull { it < springs.length && springs[it] in target }
-//                ?.let { nextI ->
-//                    cache[nextI]?.get(groups) ?: TODO()
-//                } ?: 0
-//
-//        }
+    fun matches(): Long =
+        solve(groups, 0)
 
-//    companion object {
-//        fun forLine(line: String,, fold: Int): Springs {
-//            val ()
-//        }
-//    }
+    private fun solve(groups: List<Int>, index: Int): Long {
+        if (groups.isEmpty()) {
+            return if (index < springsLength && springs.substring(index until springsLength).contains('#')) 0L else 1L
+        }
+        val current = nextNotEmpty(index)
+        if (current >= springsLength) {
+            return 0L
+        }
+
+        val cached = cache[current]?.get(groups.size)
+        if (cached != null) {
+            return cached
+        }
+
+        val resultOne = tryFillSprings(groups, current)
+
+        val resultTwo = if (springs[current] == '?') {
+            solve(groups, current + 1)
+        } else {
+            0L
+        }
+
+        val result = resultOne + resultTwo
+        cache.computeIfAbsent(current) { mutableMapOf() }[groups.size] = result
+
+        return result
+    }
+
+    private fun tryFillSprings(groups: List<Int>, index: Int): Long {
+        val group = groups.first()
+        return if (springs.canContainGroupFromIndex(group, index)) {
+            solve(groups.drop(1), index + group + 1)
+        } else {
+            0L
+        }
+    }
+
+    private fun String.canContainGroupFromIndex(group: Int, index: Int): Boolean =
+        index + group <= length &&
+                !substring(index until index + group).contains('.') &&
+                (index + group == length || get(index + group) != '#')
+
+    private fun nextNotEmpty(index: Int): Int =
+        notEmptyIndices.firstOrNull { it >= index } ?: (springsLength + 1)
+
+    companion object {
+        fun forLine(line: String, fold: Int): Springs {
+            val (springs, groupsStr) = line.split(" ")
+            val unfoldedSpring = List(fold) { springs }.joinToString("?")
+            val groups = groupsStr.split(",").map { it.toInt() }
+            val unfoldedGroups = List(fold) { groups }.flatten()
+
+            return Springs(unfoldedSpring, unfoldedGroups)
+        }
+    }
 }
+
 
 
