@@ -35,7 +35,7 @@ data class Block(
     }
 
     val verticalMirrors: List<Int> by lazy {
-        findFold(map.transpose)
+        findFold(map.transpose())
     }
 
     val alternative: Int by lazy {

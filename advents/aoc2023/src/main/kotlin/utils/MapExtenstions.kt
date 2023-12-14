@@ -23,6 +23,12 @@ fun <T> TwoDimensionalMap<T>.dump(transform: (T) -> String): String =
         transform = { it.values.joinToString(separator = "") { cell -> transform(cell).toString() } }
     )
 
+fun <T> TwoDimensionalMap<T>.dump(): String =
+    values.joinToString(
+        separator = "\n",
+        transform = { it.values.joinToString(separator = "") { cell -> cell.toString() } }
+    )
+
 fun <A, B> TwoDimensionalMap<A>.map2DValuesIndexed(transform: (x: Long, y: Long, value: A) -> B): TwoDimensionalMap<B> =
     mapValues { (y, line) -> line.mapValues { (x, value) -> transform(x, y, value) } }
 
@@ -58,18 +64,21 @@ val <T> TwoDimensionalMap<T>.height: Long
 val <T> TwoDimensionalMap<T>.width: Long
     get() = values.first().size.toLong()
 
-val <T> TwoDimensionalMap<T>.transpose: TwoDimensionalMap<T>
-    get() = entries.fold(mapOf()) { acc, (y, row) ->
+fun <T, B> TwoDimensionalMap<T>.rows(transform: (Collection<T>) -> B): List<B> =
+    values.map { transform(it.values) }
+
+fun <T, B> TwoDimensionalMap<T>.columns(transform: (Collection<T>) -> B): List<B> =
+    transpose().values.map { transform(it.values) }
+
+fun <T> TwoDimensionalMap<T>.set(point: Point, newValue: T): TwoDimensionalMap<T> =
+    map2DValuesIndexed { xy, value -> if (xy == point) newValue else value }
+
+fun <T> TwoDimensionalMap<T>.transpose(): TwoDimensionalMap<T> =
+    entries.fold(mapOf()) { acc, (y, row) ->
         row.entries.fold(acc) { acc2, (x, cell) ->
             acc2 + mapOf(x to ((acc2[x] ?: mapOf()) + mapOf(y to cell)))
         }
     }
 
-fun <T, B> TwoDimensionalMap<T>.rows(transform: (Collection<T>) -> B): List<B> =
-    values.map { transform(it.values) }
-
-fun <T, B> TwoDimensionalMap<T>.columns(transform: (Collection<T>) -> B): List<B> =
-    transpose.values.map { transform(it.values) }
-
-fun <T> TwoDimensionalMap<T>.set(point: Point, newValue: T): TwoDimensionalMap<T> =
-    map2DValuesIndexed { xy, value -> if (xy == point) newValue else value }
+fun <T> TwoDimensionalMap<T>.reflect(): TwoDimensionalMap<T> =
+    mapValues { (_, line) -> line.values.reversed().mapIndexed { index, t -> index.toLong() to t }.toMap() }
