@@ -1,15 +1,9 @@
 package com.gilpereda.aoc2022.day10
 
-import com.gilpereda.aoc2022.day10.Pipe.Companion.NE
-import com.gilpereda.aoc2022.day10.Pipe.Companion.NS
-import com.gilpereda.aoc2022.day10.Pipe.Companion.NW
-import com.gilpereda.aoc2022.day10.Pipe.Companion.SE
-import com.gilpereda.aoc2022.day10.Pipe.Companion.SW
 import com.gilpereda.aoc2022.utils.*
 import com.gilpereda.aoc2022.utils.geometry.Point
 import com.gilpereda.aoc2022.utils.geometry.Polygon
 import com.gilpereda.aoc2022.utils.geometry.toPolygon
-import kotlin.math.max
 
 typealias PipesMap = TwoDimensionalMap<Pipe?>
 typealias LoopMap = TwoDimensionalMap<PointState>
@@ -18,10 +12,10 @@ fun parseInput(sequence: Sequence<String>): Triple<Pipe, Point, PipesMap> {
     val inputList = sequence.toList()
     val rest = inputList.drop(1)
     val startPipe = Pipe.fromChar(inputList.first().first())!!
-    val startPipePosition = rest.foldIndexed(Point(-1, -1)) { y, acc, next ->
+    val startPipePosition = rest.foldIndexed(Point.from(-1, -1)) { y, acc, next ->
         when (val x = next.indexOfFirst { it == 'S' }) {
             -1 -> acc
-            else -> Point(x, y)
+            else -> Point.from(x, y)
         }
     }
     if (startPipePosition.x < 0 || startPipePosition.y < 0) throw IllegalStateException("Could not find start point")
@@ -48,11 +42,11 @@ fun secondTask(input: Sequence<String>): String {
 
     val filledMap = loopMap.fillInside(polygon)
 
-    return filledMap.valuesToList().map { if (it is Inside) 1 else 0 }.sum().toString()
+    return filledMap.values().map { if (it is Inside) 1 else 0 }.sum().toString()
 }
 
 fun LoopMap.fillInside(polygon: Polygon): LoopMap =
-    map2DValuesIndexed { point, value ->
+    mapIndexed { point, value ->
         if (value is Unknown) {
             if (point inside polygon) Inside else Outside
         } else {
@@ -61,7 +55,7 @@ fun LoopMap.fillInside(polygon: Polygon): LoopMap =
     }
 
 fun PipesMap.findStates(loop: List<Point>): LoopMap =
-    map2DValuesIndexed { point: Point, cell: Pipe? ->
+    mapIndexed { point: Point, cell: Pipe? ->
         when {
             point in loop -> LoopPipe(pipe = cell!!)
             point.isBorder(height, width) -> Outside
@@ -70,9 +64,9 @@ fun PipesMap.findStates(loop: List<Point>): LoopMap =
     }
 
 fun LoopMap.fillOutsides(): LoopMap =
-    map2DValuesIndexed { x, y, pointState ->
+    mapIndexed { x, y, pointState ->
         if (pointState is Unknown) {
-            if (Point(x, y).isFree(this)) Outside else pointState
+            if (Point.from(x, y).isFree(this)) Outside else pointState
         } else pointState
     }
 
@@ -80,21 +74,21 @@ fun Point.isFree(loop: LoopMap): Boolean =
     isFreeToNorth(loop) || isFreeToSouth(loop) || isFreeToWest(loop) || isFreeToEast(loop)
 
 private fun Point.isFreeToNorth(loop: LoopMap): Boolean =
-    (0 until y).all { loop.get(Point(x, it)) !is LoopPipe }
+    (0 until y).all { loop[Point.from(x, it)] !is LoopPipe }
 
 private fun Point.isFreeToSouth(loop: LoopMap): Boolean =
-    (y + 1 until loop.height).all { loop.get(Point(x, it)) !is LoopPipe }
+    (y + 1 until loop.height).all { loop[Point.from(x, it)] !is LoopPipe }
 
 private fun Point.isFreeToWest(loop: LoopMap): Boolean =
-    (0 until x).all { loop.get(Point(it, y)) !is LoopPipe }
+    (0 until x).all { loop[Point.from(it, y)] !is LoopPipe }
 
 private fun Point.isFreeToEast(loop: LoopMap): Boolean =
-    (x + 1 until loop.width).all { loop.get(Point(it, y)) !is LoopPipe }
+    (x + 1 until loop.width).all { loop[Point.from(it, y)] !is LoopPipe }
 
 fun List<Point>.nextPoint(pipesMap: PipesMap): Point {
     val previousPoint = get(1)
     val currentPoint = first()
-    val pipe = pipesMap[currentPoint.y]!!.get(currentPoint.x)!!
+    val pipe = pipesMap[Point.from(currentPoint.x, currentPoint.y)]!!
     val (one, other) = pipe.next(currentPoint)
     return if (one == previousPoint) other else one
 }
@@ -111,10 +105,7 @@ fun PipesMap.findLoop(startPipe: Pipe, startPosition: Point): List<Point> {
 }
 
 fun List<String>.parsed(startPipe: Pipe): PipesMap =
-    toTwoDimensionalMap { if (it == 'S') startPipe else Pipe.fromChar(it) }
-
-fun <T> Map<Long, Map<Long, T>>.get(point: Point): T =
-    get(point.y)!![point.x]!!
+    parseToMap { c: Char -> if (c == 'S') startPipe else Pipe.fromChar(c) }
 
 sealed interface PointState
 

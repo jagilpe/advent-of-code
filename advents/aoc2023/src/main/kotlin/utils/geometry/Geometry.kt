@@ -1,28 +1,63 @@
 package com.gilpereda.aoc2022.utils.geometry
 
+import com.gilpereda.aoc2022.utils.Index
+import com.gilpereda.aoc2022.utils.Orientation
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-data class Point(
-    val x: Long,
-    val y: Long,
+class Point private constructor(
+    val x: Int,
+    val y: Int,
 ) {
-    constructor(x: Int, y: Int) : this(x.toLong(), y.toLong())
 
-    fun north(): Point = Point(x, y - 1)
-    fun south(): Point = Point(x, y + 1)
-    fun west(): Point = Point(x - 1, y)
-    fun east(): Point = Point(x + 1, y)
+    fun north(): Point = Point.from(x, y - 1)
+    fun south(): Point = Point.from(x, y + 1)
+    fun west(): Point = Point.from(x - 1, y)
+    fun east(): Point = Point.from(x + 1, y)
 
-    fun isBorder(height: Long, width: Long): Boolean =
-        x == 0L || x == width - 1L || y == 0L || y == height - 1L
+    fun isBorder(height: Int, width: Int): Boolean =
+        x == 0 || x == width - 1 || y == 0 || y == height - 1
 
-    fun distanceTo(other: Point): Long =
+    fun distanceTo(other: Point): Int =
         abs(x - other.x) + abs(y - other.y)
+
+    fun move(orientation: Orientation): Point =
+        when (orientation) {
+            Orientation.NORTH -> Point.from(x, y - 1)
+            Orientation.SOUTH -> Point.from(x, y + 1)
+            Orientation.EAST -> Point.from(x + 1, y)
+            Orientation.WEST -> Point.from(x - 1, y)
+        }
 
     infix fun inside(polygon: Polygon): Boolean =
         polygon.pointIsInside(this)
+
+    override fun toString(): String = """
+        (x=$x, y=$y)
+    """.trimIndent()
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Point
+
+        if (x != other.x) return false
+        if (y != other.y) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = x
+        result = 31 * result + y
+        return result
+    }
+
+    companion object {
+        fun from(x: Index, y: Index): Point = Point.from(x, y)
+    }
 }
 
 fun List<Point>.toPolygon(): Polygon {
@@ -53,7 +88,7 @@ data class Line(
     val from: Point,
     val to: Point,
 ) {
-    fun crossesHorizontalLineAtYBeforeX(x: Long, y: Long): Boolean =
+    fun crossesHorizontalLineAtYBeforeX(x: Int, y: Int): Boolean =
         isVertical && y in minY until maxY && from.x < x
 
     fun extendTo(point: Point): Line? =

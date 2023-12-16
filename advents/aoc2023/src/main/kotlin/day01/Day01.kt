@@ -1,7 +1,5 @@
 package com.gilpereda.aoc2022.day01
 
-import java.lang.Exception
-
 fun firstTask(input: Sequence<String>): String =
     input.map(::findNumber).sum().toString()
 

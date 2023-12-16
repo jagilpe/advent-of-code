@@ -1,8 +1,5 @@
 package com.gilpereda.aoc2022.day06
 
-import com.gilpereda.aoc2022.BaseTest
-import com.gilpereda.aoc2022.Executable
-import com.gilpereda.aoc2022.day05.firstTask
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

@@ -1,18 +1,16 @@
 package com.gilpereda.aoc2022.utils
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import java.util.TooManyListenersException
 import java.util.stream.Stream
 
 class TwoDimensionalMapTest {
     @ParameterizedTest
     @MethodSource("transformations")
     fun `should work`(initial: String, expected: String, transform: (TwoDimensionalMap<Char>) -> TwoDimensionalMap<Char>) {
-        val initialMap = initial.toTwoDimensionalMap { it }
+        val initialMap = initial.parseToMap { it }
         val actualMap = transform(initialMap)
 
         assertThat(actualMap.dump()).isEqualTo(expected)
@@ -47,7 +45,7 @@ class TwoDimensionalMapTest {
                     ..###....#
                     ....#....#
                 """.trimIndent(),
-                transform = { it.reflect() }
+                transform = { it.mirror() }
             ),
             testCase(
                 initial = """

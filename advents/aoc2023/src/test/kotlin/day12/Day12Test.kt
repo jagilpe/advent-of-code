@@ -3,13 +3,8 @@ package com.gilpereda.aoc2022.day12
 import com.gilpereda.aoc2022.BaseTest
 import com.gilpereda.aoc2022.Executable
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.CsvSource
-import org.junit.jupiter.params.provider.MethodSource
-import org.junit.jupiter.params.provider.ValueSource
-import java.util.stream.Stream
 
 class Day12Test : BaseTest() {
     override val example: String = """

@@ -39,8 +39,8 @@ data class Block(
     }
 
     val alternative: Int by lazy {
-        map.indices()
-            .map { it to Block(map.set(it, map.getNotNullable(it).inversed)) }
+        map.indices
+            .map { it to Block(map.set(it, map[it].inversed)) }
             .firstNotNullOfOrNull { (point, it) ->
                 val newHorizontal = it.horizontalMirrors - horizontalMirrors
                 val newVertical = it.verticalMirrors - verticalMirrors
@@ -77,7 +77,7 @@ data class Block(
 
     companion object {
         fun parsed(block: String): Block =
-            Block(block.split("\n").toTwoDimensionalMap { it })
+            Block(block.parseToMap { it })
     }
 }
 
