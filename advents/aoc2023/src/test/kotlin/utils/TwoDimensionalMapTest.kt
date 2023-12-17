@@ -9,7 +9,7 @@ import java.util.stream.Stream
 class TwoDimensionalMapTest {
     @ParameterizedTest
     @MethodSource("transformations")
-    fun `should work`(initial: String, expected: String, transform: (TwoDimensionalMap<Char>) -> TwoDimensionalMap<Char>) {
+    fun `should work`(initial: String, expected: String, transform: (TypedTwoDimensionalMap<Char>) -> TypedTwoDimensionalMap<Char>) {
         val initialMap = initial.parseToMap { it }
         val actualMap = transform(initialMap)
 
@@ -90,7 +90,7 @@ class TwoDimensionalMapTest {
         fun testCase(
             initial: String,
             expected: String,
-            transform: (TwoDimensionalMap<Char>) -> TwoDimensionalMap<Char>,
+            transform: (TypedTwoDimensionalMap<Char>) -> TypedTwoDimensionalMap<Char>,
         ): Arguments =
             Arguments.of(initial, expected, transform)
 

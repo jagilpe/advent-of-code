@@ -4,7 +4,7 @@ import com.gilpereda.aoc2022.utils.geometry.Point
 
 typealias Index = Int
 
-class TwoDimensionalMap<T>(
+class TypedTwoDimensionalMap<T>(
     private val internalMap: MutableList<MutableList<T>>,
 ) {
     val height: Int by lazy {
@@ -22,17 +22,17 @@ class TwoDimensionalMap<T>(
         internalMap.flatMapIndexed { y, line -> List(line.size) { x -> Point.from(x, y) } }
     }
 
-    fun <B> map(transform: (T) -> B): TwoDimensionalMap<B> =
+    fun <B> map(transform: (T) -> B): TypedTwoDimensionalMap<B> =
         mapIndexed { _, value -> transform(value) }
 
-    fun <B> mapIndexed(transform: (Point, T) -> B): TwoDimensionalMap<B> =
+    fun <B> mapIndexed(transform: (Point, T) -> B): TypedTwoDimensionalMap<B> =
         mapIndexed { x, y, value -> transform(Point.from(x, y), value) }
 
-    fun <B> mapIndexed(transform: (x: Index, y: Index, value: T) -> B): TwoDimensionalMap<B> =
-        TwoDimensionalMap(internalMap.mapIndexed { y, line -> line.mapIndexed { x, value -> transform(x, y, value) }.toMutableList() }.toMutableList())
+    fun <B> mapIndexed(transform: (x: Index, y: Index, value: T) -> B): TypedTwoDimensionalMap<B> =
+        TypedTwoDimensionalMap(internalMap.mapIndexed { y, line -> line.mapIndexed { x, value -> transform(x, y, value) }.toMutableList() }.toMutableList())
 
-    fun <B> mapLines(transform: (List<T>) -> List<B>): TwoDimensionalMap<B> =
-        TwoDimensionalMap(internalMap.map { transform(it).toMutableList() }.toMutableList())
+    fun <B> mapLines(transform: (List<T>) -> List<B>): TypedTwoDimensionalMap<B> =
+        TypedTwoDimensionalMap(internalMap.map { transform(it).toMutableList() }.toMutableList())
 
     fun values(): List<T> = internalMap.flatten()
 
@@ -47,7 +47,7 @@ class TwoDimensionalMap<T>(
     fun getNullable(point: Point): T? =
         internalMap.getOrNull(point.y)?.getOrNull(point.x)
 
-    operator fun set(point: Point, value: T): TwoDimensionalMap<T> {
+    operator fun set(point: Point, value: T): TypedTwoDimensionalMap<T> {
         internalMap[point.y][point.x] = value
         return this
     }
@@ -58,9 +58,9 @@ class TwoDimensionalMap<T>(
     fun <B> columns(transform: (Collection<T>) -> B): List<B> =
         transpose().internalMap.map(transform)
 
-    fun transpose(): TwoDimensionalMap<T> {
+    fun transpose(): TypedTwoDimensionalMap<T> {
         val initial = MutableList(internalMap.first().size) { mutableListOf<T>() }
-        return TwoDimensionalMap(
+        return TypedTwoDimensionalMap(
             internalMap.fold(initial) { acc, row ->
                 row.forEachIndexed { x, c ->
                     acc[x].add(c)
@@ -70,8 +70,8 @@ class TwoDimensionalMap<T>(
         )
     }
 
-    fun mirror(): TwoDimensionalMap<T> =
-        TwoDimensionalMap(
+    fun mirror(): TypedTwoDimensionalMap<T> =
+        TypedTwoDimensionalMap(
             internalMap.map { it.reversed().toMutableList() }.toMutableList()
         )
 
@@ -79,14 +79,14 @@ class TwoDimensionalMap<T>(
         values().count(predicate)
 }
 
-inline fun <reified T> String.parseToMap(transform: (c: Char) -> T): TwoDimensionalMap<T> =
+inline fun <reified T> String.parseToMap(transform: (c: Char) -> T): TypedTwoDimensionalMap<T> =
     split("\n").parseToMap(transform)
 
-inline fun <reified T> List<String>.parseToMap(transform: (c: Char) -> T): TwoDimensionalMap<T> =
+inline fun <reified T> List<String>.parseToMap(transform: (c: Char) -> T): TypedTwoDimensionalMap<T> =
     parseToMap { _, _, c -> transform(c) }
 
-inline fun <reified T> List<String>.parseToMap(transform: (point: Point, c: Char) -> T): TwoDimensionalMap<T> =
+inline fun <reified T> List<String>.parseToMap(transform: (point: Point, c: Char) -> T): TypedTwoDimensionalMap<T> =
     parseToMap { x, y, c -> transform(Point.from(x, y), c)}
 
-inline fun <reified T> List<String>.parseToMap(transform: (x: Index, y: Index, c: Char) -> T): TwoDimensionalMap<T> =
-    TwoDimensionalMap(mapIndexed { y, line -> line.mapIndexed { x, cell -> transform(x, y, cell) }.toMutableList() }.toMutableList())
+inline fun <reified T> List<String>.parseToMap(transform: (x: Index, y: Index, c: Char) -> T): TypedTwoDimensionalMap<T> =
+    TypedTwoDimensionalMap(mapIndexed { y, line -> line.mapIndexed { x, cell -> transform(x, y, cell) }.toMutableList() }.toMutableList())

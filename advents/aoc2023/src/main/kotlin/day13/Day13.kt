@@ -1,6 +1,7 @@
 package com.gilpereda.aoc2022.day13
 
-import com.gilpereda.aoc2022.utils.*
+import com.gilpereda.aoc2022.utils.TypedTwoDimensionalMap
+import com.gilpereda.aoc2022.utils.parseToMap
 
 /**
  * 26580 -> too low
@@ -24,7 +25,7 @@ fun secondTask(input: Sequence<String>): String =
         .sumOf { it.alternative }.toString()
 
 data class Block(
-    val map: TwoDimensionalMap<Char>
+    val map: TypedTwoDimensionalMap<Char>
 ) {
     val totalPoints: Int by lazy {
         horizontalMirrors.sum() * 100 + verticalMirrors.sum()
@@ -58,7 +59,7 @@ data class Block(
             else -> '.'
         }
 
-    private fun findFold(map: TwoDimensionalMap<Char>): List<Int> {
+    private fun findFold(map: TypedTwoDimensionalMap<Char>): List<Int> {
         val rows = map.rows { it.joinToString("") }
         return rows
             .asSequence()

@@ -8,7 +8,7 @@ enum class Orientation {
 }
 
 
-fun <T> TwoDimensionalMap<T>.transform(orientation: Orientation): TwoDimensionalMap<T> =
+fun <T> TypedTwoDimensionalMap<T>.transform(orientation: Orientation): TypedTwoDimensionalMap<T> =
     when (orientation) {
         Orientation.NORTH -> transpose()
         Orientation.SOUTH -> transpose().mirror()
@@ -16,7 +16,7 @@ fun <T> TwoDimensionalMap<T>.transform(orientation: Orientation): TwoDimensional
         Orientation.EAST -> mirror()
     }
 
-fun <T> TwoDimensionalMap<T>.transformBack(orientation: Orientation): TwoDimensionalMap<T> =
+fun <T> TypedTwoDimensionalMap<T>.transformBack(orientation: Orientation): TypedTwoDimensionalMap<T> =
     when (orientation) {
         Orientation.NORTH -> transpose()
         Orientation.SOUTH -> mirror().transpose()

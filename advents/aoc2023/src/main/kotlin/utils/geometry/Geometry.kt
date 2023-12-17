@@ -56,7 +56,7 @@ class Point private constructor(
     }
 
     companion object {
-        fun from(x: Index, y: Index): Point = Point.from(x, y)
+        fun from(x: Index, y: Index): Point = Point(x, y)
     }
 }
 

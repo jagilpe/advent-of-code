@@ -1,12 +1,13 @@
 package com.gilpereda.aoc2022.day10
 
-import com.gilpereda.aoc2022.utils.*
+import com.gilpereda.aoc2022.utils.TypedTwoDimensionalMap
 import com.gilpereda.aoc2022.utils.geometry.Point
 import com.gilpereda.aoc2022.utils.geometry.Polygon
 import com.gilpereda.aoc2022.utils.geometry.toPolygon
+import com.gilpereda.aoc2022.utils.parseToMap
 
-typealias PipesMap = TwoDimensionalMap<Pipe?>
-typealias LoopMap = TwoDimensionalMap<PointState>
+typealias PipesMap = TypedTwoDimensionalMap<Pipe?>
+typealias LoopMap = TypedTwoDimensionalMap<PointState>
 
 fun parseInput(sequence: Sequence<String>): Triple<Pipe, Point, PipesMap> {
     val inputList = sequence.toList()

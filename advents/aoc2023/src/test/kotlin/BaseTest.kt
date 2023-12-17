@@ -39,12 +39,12 @@ abstract class BaseTest {
         println("Result: $result")
     }
 
-//    @Test
+    @Test
     fun `should work with the example - part 2`() {
         check(example2 to result2, run2)
     }
 
-//    @Test
+    @Test
     fun `should return the result - part 2`() {
         val result = run2(inputSequence)
 

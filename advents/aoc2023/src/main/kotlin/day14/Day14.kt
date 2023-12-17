@@ -23,7 +23,7 @@ fun secondTask(input: Sequence<String>): String {
 }
 
 data class Surface(
-    val map: TwoDimensionalMap<Cell>
+    val map: TypedTwoDimensionalMap<Cell>
 ) {
     val key: String = map.values().joinToString("")
     val load: Int
