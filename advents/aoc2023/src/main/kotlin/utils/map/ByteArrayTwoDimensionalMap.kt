@@ -4,6 +4,8 @@ package com.gilpereda.aoc2022.utils.map
 
 import com.gilpereda.aoc2022.utils.geometry.Point
 
+typealias IntTwoDimensionalMap = ByteArrayTwoDimensionalMap<Int>
+
 @OptIn(ExperimentalUnsignedTypes::class)
 class ByteArrayTwoDimensionalMap<T>(
     private val toValue: UByte.() -> T,
@@ -29,6 +31,9 @@ class ByteArrayTwoDimensionalMap<T>(
             true
         }
     }
+
+    fun withinMap(point: Point): Boolean =
+        point.withinLimits(0 until width, 0 until height)
 
     operator fun set(point: Point, value: T) {
         setByte(point, value.fromValue())
@@ -61,3 +66,9 @@ fun <T> List<String>.parseToByteArrayMap(
         fromValue = fromValue,
         internalMap = map { line -> line.map { parse(it).fromValue() }.toUByteArray() }.toTypedArray()
     )
+
+fun List<String>.parseToIntArrayMap(): IntTwoDimensionalMap = parseToByteArrayMap<Int>(
+    toValue = { toInt() },
+    fromValue = { toUByte() },
+    parse = { it.digitToInt() }
+)

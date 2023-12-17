@@ -40,9 +40,13 @@ class Day05Test : BaseTest() {
         56 93 4
     """.trimIndent()
 
-    override val result1: String = "35"
+    override val resultExample1: String = "35"
 
-    override val result2: String = "46"
+    override val resultExample2: String = "46"
+
+    override val resultReal1: String = "199602917"
+
+    override val resultReal2: String = "2254686"
 
     override val input: String = "/day05/input"
 

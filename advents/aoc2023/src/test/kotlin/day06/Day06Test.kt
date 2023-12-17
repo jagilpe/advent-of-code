@@ -30,7 +30,7 @@ class Day06Test {
         )
 
         val result = firstTask(input)
-        assertThat(result).isGreaterThan(0)
+        assertThat(result).isEqualTo(608902)
         println("result: $result")
     }
 
@@ -51,7 +51,7 @@ class Day06Test {
         )
 
         val result = firstTask(input)
-        assertThat(result).isGreaterThan(0)
+        assertThat(result).isEqualTo(46173809)
         println("result: $result")
     }
 }

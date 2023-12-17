@@ -1,10 +1,24 @@
 package com.gilpereda.aoc2022.utils
 
+import com.gilpereda.aoc2022.day10.Pipe
+
 enum class Orientation {
     NORTH,
     SOUTH,
     EAST,
     WEST;
+
+    fun isOpposite(orientation: Orientation): Boolean =
+        orientation == opposite
+
+    val opposite: Orientation by lazy {
+        when (this) {
+            NORTH -> SOUTH
+            SOUTH -> NORTH
+            EAST -> WEST
+            WEST -> EAST
+        }
+    }
 }
 
 

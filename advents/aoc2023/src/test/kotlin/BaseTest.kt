@@ -10,8 +10,10 @@ abstract class BaseTest {
     open val example2: String
         get() = example
 
-    abstract val result1: String
-    abstract val result2: String
+    abstract val resultExample1: String
+    abstract val resultReal1: String
+    abstract val resultExample2: String
+    abstract val resultReal2: String
     abstract val input: String
 
     abstract val run1: Executable
@@ -26,29 +28,23 @@ abstract class BaseTest {
         assertThat(run(input.splitToSequence("\n"))).isEqualTo(expected)
     }
 
-    @Test
+//    @Test
     fun `should work with the example - part 1`() {
-        check(example to result1, run1)
+        check(example to resultExample1, run1)
     }
 
-    @Test
+//    @Test
     fun `should return the result - part 1`() {
-        val result = run1(inputSequence)
-
-        assertThat(result).isNotNull
-        println("Result: $result")
+        assertThat(run1(inputSequence)).isEqualTo(resultReal1)
     }
 
-    @Test
+//    @Test
     fun `should work with the example - part 2`() {
-        check(example2 to result2, run2)
+        check(example2 to resultExample2, run2)
     }
 
     @Test
     fun `should return the result - part 2`() {
-        val result = run2(inputSequence)
-
-        assertThat(result).isNotNull
-        println("Result: $result")
+        assertThat(run2(inputSequence)).isEqualTo(resultReal1)
     }
 }

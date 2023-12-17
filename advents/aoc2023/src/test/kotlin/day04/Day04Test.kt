@@ -13,9 +13,13 @@ class Day04Test : BaseTest() {
         Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11
     """.trimIndent()
 
-    override val result1: String = "13"
+    override val resultExample1: String = "13"
 
-    override val result2: String = "30"
+    override val resultExample2: String = "30"
+
+    override val resultReal1: String = "21213"
+
+    override val resultReal2: String = "8549735"
 
     override val input: String = "/day04/input"
 

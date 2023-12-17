@@ -27,9 +27,13 @@ class Day10Test : BaseTest() {
         L7JLJL-JLJLJL--JLJ.L
     """.trimIndent()
 
-    override val result1: String = "8"
+    override val resultExample1: String = "8"
 
-    override val result2: String = "10"
+    override val resultExample2: String = "10"
+
+    override val resultReal1: String = "6682"
+
+    override val resultReal2: String = "353"
 
     override val input: String = "/day10/input"
 

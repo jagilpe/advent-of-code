@@ -12,9 +12,13 @@ class Day02Test : BaseTest() {
         Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
     """.trimIndent()
 
-    override val result1: String = "8"
+    override val resultExample1: String = "8"
 
-    override val result2: String = "2286"
+    override val resultExample2: String = "2286"
+
+    override val resultReal1: String = "2207"
+
+    override val resultReal2: String = "62241"
 
     override val input: String = "/day02/input"
 

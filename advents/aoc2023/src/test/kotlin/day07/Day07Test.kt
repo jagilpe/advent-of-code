@@ -39,10 +39,13 @@ class Day07Test : BaseTest() {
         9TTT9 35
     """.trimIndent()
 
-    override val result1: String = "6440"
+    override val resultExample1: String = "6440"
 
-//    override val result2: String = "5905"
-    override val result2: String =
+    override val resultReal1: String = "245794640"
+
+    override val resultReal2: String = "247899149"
+
+    override val resultExample2: String =
         listOf(
             722,
             425,

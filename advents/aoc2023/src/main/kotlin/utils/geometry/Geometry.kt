@@ -2,19 +2,17 @@ package com.gilpereda.aoc2022.utils.geometry
 
 import com.gilpereda.aoc2022.utils.Index
 import com.gilpereda.aoc2022.utils.Orientation
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.*
 
 class Point private constructor(
     val x: Int,
     val y: Int,
 ) {
 
-    fun north(): Point = Point.from(x, y - 1)
-    fun south(): Point = Point.from(x, y + 1)
-    fun west(): Point = Point.from(x - 1, y)
-    fun east(): Point = Point.from(x + 1, y)
+    fun north(): Point = from(x, y - 1)
+    fun south(): Point = from(x, y + 1)
+    fun west(): Point = from(x - 1, y)
+    fun east(): Point = from(x + 1, y)
 
     fun isBorder(height: Int, width: Int): Boolean =
         x == 0 || x == width - 1 || y == 0 || y == height - 1
@@ -24,11 +22,21 @@ class Point private constructor(
 
     fun move(orientation: Orientation): Point =
         when (orientation) {
-            Orientation.NORTH -> Point.from(x, y - 1)
-            Orientation.SOUTH -> Point.from(x, y + 1)
-            Orientation.EAST -> Point.from(x + 1, y)
-            Orientation.WEST -> Point.from(x - 1, y)
+            Orientation.NORTH -> from(x, y - 1)
+            Orientation.SOUTH -> from(x, y + 1)
+            Orientation.EAST -> from(x + 1, y)
+            Orientation.WEST -> from(x - 1, y)
         }
+
+    fun moveUntil(orientation: Orientation, predicate: (Point) -> Boolean): Point =
+        generateSequence(this) { point -> point.move(orientation) }.first(predicate)
+
+    fun withinLimits(xRange: IntRange, yRange: IntRange): Boolean =
+        x in xRange && y in yRange
+
+    val neighbours: Map<Orientation, Point> by lazy {
+        Orientation.entries.associateWith { move(it) }
+    }
 
     infix fun inside(polygon: Polygon): Boolean =
         polygon.pointIsInside(this)
@@ -58,6 +66,11 @@ class Point private constructor(
     companion object {
         fun from(x: Index, y: Index): Point = Point(x, y)
     }
+}
+
+enum class DistanceMeasurement {
+    EUCLIDEAN,
+    MANHATTAN,
 }
 
 fun List<Point>.toPolygon(): Polygon {

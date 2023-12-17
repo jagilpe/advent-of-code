@@ -7,11 +7,15 @@ class Day22Test : BaseTest() {
     override val example: String
         get() = TODO()
 
-    override val result1: String
+    override val resultExample1: String
         get() = TODO()
 
-    override val result2: String
+    override val resultExample2: String
         get() = TODO()
+
+    override val resultReal1: String = ""
+
+    override val resultReal2: String = ""
 
     override val input: String = "/day22/input"
 

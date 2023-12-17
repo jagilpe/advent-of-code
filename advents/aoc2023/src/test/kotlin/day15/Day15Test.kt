@@ -8,9 +8,13 @@ import org.junit.jupiter.api.Test
 class Day15Test : BaseTest() {
     override val example: String = "rn=1,cm-,qp=3,cm=2,qp-,pc=4,ot=9,ab=5,pc-,pc=6,ot=7"
 
-    override val result1: String = "1320"
+    override val resultExample1: String = "1320"
 
-    override val result2: String = "145"
+    override val resultExample2: String = "145"
+
+    override val resultReal1: String = "513643"
+
+    override val resultReal2: String = "265345"
 
     override val input: String = "/day15/input"
 
