@@ -1,6 +1,6 @@
 package com.gilpereda.aoc2022.day17
 
-import com.gilpereda.aoc2022.utils.Orientation
+import com.gilpereda.aoc2022.utils.geometry.Orientation
 import com.gilpereda.aoc2022.utils.geometry.Point
 import com.gilpereda.aoc2022.utils.map.IntTwoDimensionalMap
 import com.gilpereda.aoc2022.utils.map.parseToIntArrayMap
@@ -8,8 +8,14 @@ import com.gilpereda.aoc2022.utils.map.parseToIntArrayMap
 fun firstTask(input: Sequence<String>): String =
     input.toList().parsed(0, 4).solve().toString()
 
-fun secondTask(input: Sequence<String>): String =
-    input.toList().parsed(4, 10).solve().toString()
+/**
+ * 945 too high
+ * 943 too high
+ */
+fun secondTask(input: Sequence<String>): String {
+    println("${Runtime.getRuntime().maxMemory()}")
+    return input.toList().parsed(4, 11).solve().toString()
+}
 
 fun List<String>.parsed(minBlocks: Int, maxBlocks: Int): Game =
     Game(map = parseToIntArrayMap(), minBlocks = minBlocks, maxBlocks = maxBlocks)
@@ -34,13 +40,17 @@ class Game(
     }
 
     private fun findMinHeatLossPath(): List<Point> {
+        var i = 0
 
         while (queue.isNotEmpty()) {
+            i += 1
+            if (i % 10_000 == 0) {
+                println("Queue items: ${queue.size}, paths items: ${paths.size}, gScore items: ${gScore.size}, fScore items: ${fScore.size}")
+            }
             val current = queue.next()
             if (current.point == finish)
                 return paths.pathTo(current).map { it.point }
 
-            println(queue.size)
             val neighbours = current.neighbours(minBlocks, maxBlocks)
             neighbours
                 .filter { it.isValid }
@@ -82,7 +92,7 @@ class Game(
         }
 
     private fun totalHeatLoss(path: List<Point>): Int =
-        path.sumOf { map[it] } - map[start]
+        path.filter { it != start }.sumOf { map[it] }
 
     private val State.isValid: Boolean
         get() = map.withinMap(point)
@@ -115,6 +125,9 @@ class Game(
     inner class StatePaths {
         private val map = mutableMapOf<State, State>()
 
+        val size: Int
+            get() = map.size
+
         operator fun set(to: State, from: State): StatePaths {
             map[to] = from
             return this
@@ -131,6 +144,9 @@ class Game(
                 initial.forEach { put(it, 0.0) }
             }
 
+        val size: Int
+            get() = scores.size
+
         operator fun set(state: State, score: Double) {
             scores[state] = score
         }
@@ -145,6 +161,9 @@ class Game(
             .apply {
                 initial.forEach { put(it, 0.0) }
             }
+
+        val size: Int
+            get() = scores.size
 
         fun add(state: State, score: Double) {
             scores[state] = score + state.distance()

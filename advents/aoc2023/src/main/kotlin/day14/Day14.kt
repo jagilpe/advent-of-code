@@ -1,6 +1,9 @@
 package com.gilpereda.aoc2022.day14
 
 import com.gilpereda.aoc2022.utils.*
+import com.gilpereda.aoc2022.utils.geometry.Orientation
+import com.gilpereda.aoc2022.utils.geometry.transform
+import com.gilpereda.aoc2022.utils.geometry.transformBack
 
 fun firstTask(input: Sequence<String>): String =
     input.toList().parsed()

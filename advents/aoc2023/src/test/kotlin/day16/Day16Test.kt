@@ -3,7 +3,7 @@ package com.gilpereda.aoc2022.day16
 import com.gilpereda.aoc2022.BaseTest
 import com.gilpereda.aoc2022.Executable
 import com.gilpereda.aoc2022.day16.Tile.*
-import com.gilpereda.aoc2022.utils.Orientation.*
+import com.gilpereda.aoc2022.utils.geometry.Orientation.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments

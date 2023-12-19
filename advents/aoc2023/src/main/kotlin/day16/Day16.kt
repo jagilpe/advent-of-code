@@ -1,6 +1,6 @@
 package com.gilpereda.aoc2022.day16
 
-import com.gilpereda.aoc2022.utils.Orientation
+import com.gilpereda.aoc2022.utils.geometry.Orientation
 import com.gilpereda.aoc2022.utils.geometry.Point
 import com.gilpereda.aoc2022.utils.map.ByteArrayTwoDimensionalMap
 import com.gilpereda.aoc2022.utils.map.parseToByteArrayMap

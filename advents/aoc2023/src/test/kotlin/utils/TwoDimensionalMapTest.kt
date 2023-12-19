@@ -1,5 +1,7 @@
 package com.gilpereda.aoc2022.utils
 
+import com.gilpereda.aoc2022.utils.geometry.Orientation
+import com.gilpereda.aoc2022.utils.geometry.transform
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments

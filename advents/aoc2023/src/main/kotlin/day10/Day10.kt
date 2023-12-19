@@ -3,7 +3,6 @@ package com.gilpereda.aoc2022.day10
 import com.gilpereda.aoc2022.utils.TypedTwoDimensionalMap
 import com.gilpereda.aoc2022.utils.geometry.Point
 import com.gilpereda.aoc2022.utils.geometry.Polygon
-import com.gilpereda.aoc2022.utils.geometry.toPolygon
 import com.gilpereda.aoc2022.utils.parseToMap
 
 typealias PipesMap = TypedTwoDimensionalMap<Pipe?>
@@ -38,7 +37,7 @@ fun secondTask(input: Sequence<String>): String {
     val (startPipe, startPipePosition, pipesMap) = parseInput(input)
 
     val loopList = pipesMap.findLoop(startPipe, startPipePosition)
-    val polygon = loopList.toPolygon()
+    val polygon = Polygon(loopList)
     val loopMap = pipesMap.findStates(loopList).fillOutsides()
 
     val filledMap = loopMap.fillInside(polygon)

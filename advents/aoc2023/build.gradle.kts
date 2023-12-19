@@ -22,6 +22,9 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    testLogging.showStandardStreams = true
+    minHeapSize = "1024m"
+    maxHeapSize = "4096m"
 }
 
 tasks.withType<KotlinCompile> {
