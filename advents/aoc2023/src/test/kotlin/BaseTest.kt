@@ -45,6 +45,6 @@ abstract class BaseTest {
 
     @Test
     fun `should return the result - part 2`() {
-        assertThat(run2(inputSequence)).isEqualTo(resultReal1)
+        assertThat(run2(inputSequence)).isEqualTo(resultReal2)
     }
 }
