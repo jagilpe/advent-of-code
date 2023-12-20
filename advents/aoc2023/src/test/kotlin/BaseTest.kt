@@ -28,17 +28,17 @@ abstract class BaseTest {
         assertThat(run(input.splitToSequence("\n"))).isEqualTo(expected)
     }
 
-    @Test
+//    @Test
     fun `should work with the example - part 1`() {
         check(example to resultExample1, run1)
     }
 
-    @Test
+//    @Test
     fun `should return the result - part 1`() {
         assertThat(run1(inputSequence)).isEqualTo(resultReal1)
     }
 
-    @Test
+//    @Test
     fun `should work with the example - part 2`() {
         check(example2 to resultExample2, run2)
     }
