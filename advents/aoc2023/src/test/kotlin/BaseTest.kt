@@ -16,12 +16,25 @@ abstract class BaseTest {
     abstract val resultReal2: String
     abstract val input: String
 
-    abstract val run1: Executable
-    abstract val run2: Executable
+    open val run1: Executable = { TODO() }
+    open val run2: Executable = { TODO() }
+
+    protected open fun runExample1(sequence: Sequence<String>): String =
+        run1(sequence)
+
+    protected open fun runReal1(sequence: Sequence<String>): String =
+        run1(sequence)
+
+    protected open fun runExample2(sequence: Sequence<String>): String =
+        run2(sequence)
+
+    protected open fun runReal2(sequence: Sequence<String>): String =
+        run2(sequence)
 
     protected val inputSequence: Sequence<String>
         get() =
             BaseTest::class.java.getResourceAsStream(input)!!.bufferedReader().lineSequence()
+
 
     protected fun check(example: Pair<String, String>, run: Executable) {
         val (input, expected) = example
@@ -30,21 +43,21 @@ abstract class BaseTest {
 
 //    @Test
     fun `should work with the example - part 1`() {
-        check(example to resultExample1, run1)
+        check(example to resultExample1, ::runExample1)
     }
 
 //    @Test
     fun `should return the result - part 1`() {
-        assertThat(run1(inputSequence)).isEqualTo(resultReal1)
+        assertThat(runReal1(inputSequence)).isEqualTo(resultReal1)
     }
 
 //    @Test
     fun `should work with the example - part 2`() {
-        check(example2 to resultExample2, run2)
+        check(example2 to resultExample2, ::runExample2)
     }
 
     @Test
     fun `should return the result - part 2`() {
-        assertThat(run2(inputSequence)).isEqualTo(resultReal2)
+        assertThat(runReal2(inputSequence)).isEqualTo(resultReal2)
     }
 }

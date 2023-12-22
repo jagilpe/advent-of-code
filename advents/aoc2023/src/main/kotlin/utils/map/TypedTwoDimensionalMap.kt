@@ -1,6 +1,7 @@
 package com.gilpereda.aoc2022.utils
 
 import com.gilpereda.aoc2022.utils.geometry.Point
+import com.gilpereda.aoc2022.utils.map.UnlimitedTypedTwoDimensionalMap
 
 typealias Index = Int
 
@@ -15,12 +16,23 @@ class TypedTwoDimensionalMap<T>(
         internalMap.first().size
     }
 
+    fun toUnlimited(): UnlimitedTypedTwoDimensionalMap<T> =
+        UnlimitedTypedTwoDimensionalMap(this)
+
     fun dump(transform: (T) -> String = { "$it"}): String =
         internalMap.joinToString(separator = "\n") { line -> line.joinToString("") { transform(it)} }
+
+    fun dump(transform: (Point, T) -> String): String =
+        internalMap.mapIndexed { y, line -> line.mapIndexed { x, cell -> transform(Point.from(x, y), cell) } }
+            .joinToString("\n") { line -> line.joinToString("") }
+
 
     val indices: List<Point> by lazy {
         internalMap.flatMapIndexed { y, line -> List(line.size) { x -> Point.from(x, y) } }
     }
+
+    fun withinMap(point: Point): Boolean =
+        point.withinLimits(0 until width, 0 until height)
 
     fun <B> map(transform: (T) -> B): TypedTwoDimensionalMap<B> =
         mapIndexed { _, value -> transform(value) }

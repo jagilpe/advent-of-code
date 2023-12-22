@@ -29,6 +29,12 @@ class Point private constructor(
             WEST -> west(steps = steps)
         }
 
+    operator fun minus(other: Point): Point =
+        from(x = x - other.x, y = y - other.y)
+
+    operator fun plus(other: Point): Point =
+        from(x = x + other.x, y = y + other.y)
+
     fun moveUntil(orientation: Orientation, predicate: (Point) -> Boolean): Point =
         generateSequence(this) { point -> point.move(orientation) }.first(predicate)
 

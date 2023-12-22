@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     kotlin("jvm") version "1.9.21"
     application
+    id("maven-publish")
+    `java-library`
 }
 
 group = "com.gilpereda.advents-of-code"
@@ -33,4 +35,12 @@ tasks.withType<KotlinCompile> {
 
 application {
     mainClass.set("MainKt")
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("library") {
+            from(components["java"])
+        }
+    }
 }
