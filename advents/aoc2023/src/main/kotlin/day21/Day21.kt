@@ -54,7 +54,7 @@ fun firstTask(input: Sequence<String>, steps: Int): String {
 }
 
 fun secondTaskExample(input: Sequence<String>): String =
-    secondTask(input, 100 + 1)
+    secondTask(input, 500 + 1)
 
 fun secondTaskReal(input: Sequence<String>): String =
     secondTask(input, 5000 + 1)
@@ -92,7 +92,21 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
 
     val loopedBlocksCount = mutableMapOf(step to Pair(0, 0))
 
-    operator fun get(point: Point): Cell {
+    fun count(step: Int): Map<String, Int> {
+        val (activePoints, loopedBlocks) = coordinateToBlock.values.fold(0 to 0) { (active, blocked), next ->
+            when (next) {
+                is ActiveBlock -> active + next.count(step) to blocked
+                is LoopBlock -> active to next.count(step) + blocked
+            }
+        }
+        return mapOf(
+            "active" to activePoints,
+            "looped" to loopedBlocks,
+            "total" to activePoints + loopedBlocks
+        )
+    }
+
+    operator fun get(point: Point, step: Int): Cell {
         val normalizedPoint = point.normalized()
         val blockCoordinate = point.toBlockCoordinate()
         val block = blockForCoordinate(blockCoordinate)
@@ -107,6 +121,8 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
             }
     }
 
+    operator fun get(point: Point): Cell = get(point, step)
+
     private val blockWidth = map.originalWidth
     private val blockHeight = map.originalHeight
 
@@ -119,10 +135,10 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
 
     fun next(): World {
         val newPoints = activePoints.flatMap { point -> point.neighbours.values.filter { map[it] != Rock } }.toSet()
+        step += 1
         activePoints = updateBlocks(newPoints)
         loopedBlocksCount[step] = loopedBlocks.count() to loopedBlocks.sumOf { it.blocksAfter(step) }
         if (step % 200 == 0) println("Step $step, active points: ${activePoints.size}")
-        step += 1
         return this
     }
 
@@ -154,7 +170,7 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
                 when (val block = blockForCoordinate(blockCoordinates)) {
                     is ActiveBlock -> {
                         if (block.update(step, points.normalized())) {
-                            val loopBlock = block.toLoopBlock(step)
+                            val loopBlock = block.toLoopBlock()
                             coordinateToBlock[blockCoordinates] = loopBlock
                             loopedBlocks.add(loopBlock)
                             val (firstStep, value) = block.stepToActivePoints.entries.minBy { it.key }
@@ -163,6 +179,7 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
                                 hash = value.hash,
                                 stepsToLoop = step - firstStep
                             )
+                            loopDetected(block.loop)
                             emptyList()
                         } else {
                             points
@@ -174,7 +191,6 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
             }.flatten().toSet()
 
     private fun loopDetected(loop: Loop) {
-        println("Loop detected")
         this.loop = loop
         coordinateToBlock.values.filterIsInstance<ActiveBlock>().forEach { it.loopDetected(loop) }
     }
@@ -207,65 +223,68 @@ fun Int.mapped(length: Int): Int =
 
 sealed interface Block {
     fun isActive(point: Point, step: Int): Boolean
+    fun count(step: Int): Int
 }
 
 private const val GAP = 10
 private const val CYCLE_COUNT = 10
-private const val MIN_CYCLE_LENGTH = 2
-private const val MAX_CYCLE_LENGTH = 2
-private const val START_DETECTION = GAP + (MAX_CYCLE_LENGTH * CYCLE_COUNT)
+private const val CYCLE_LENGTH = 2
+private const val START_DETECTION = GAP + (CYCLE_LENGTH * CYCLE_COUNT)
 
 class ActiveBlock(
-    private var loop: Loop = null
+    var loop: Loop = null
 ) : Block {
+
+    private var enteredLoopInStep: Int? = null
 
     private var activePoints: Set<Point> = emptySet()
     val stepToActivePoints: MutableMap<Int, BlockState> = mutableMapOf()
+
+    override fun count(step: Int): Int = stepToActivePoints[step]?.count ?: 0
+
+    override fun isActive(point: Point, step: Int): Boolean =
+        point in activePoints
 
     fun loopDetected(loop: Loop) {
         this.loop = loop
     }
 
-    fun toLoopBlock(step: Int): LoopBlock =
-        LoopBlock(loop = loop!!, loopEntered = step)
+    fun toLoopBlock(): LoopBlock =
+        LoopBlock(loop = loop!!, loopEntered = enteredLoopInStep!!, previousStates = stepToActivePoints)
 
     fun update(step: Int, points: Set<Point>): Boolean {
         stepToActivePoints[step] = BlockState(hash = points.hashCode(), points = points, count = points.size)
         activePoints = points
         return this.loop?.let { loop ->
             if (points.hashCode() == loop.firstOrNull()?.hash) {
-                println("Detected loop entry in ${stepToActivePoints.size}")
+//                println("Detected loop entry in ${stepToActivePoints.size}")
+                enteredLoopInStep = step
                 true
             } else {
                 false
             }
-        } ?: cycleDetection(step)
+        } ?: cycleDetected()
     }
 
-    private fun cycleDetection(step: Int): Boolean {
-        val cycleLength = (MAX_CYCLE_LENGTH downTo MIN_CYCLE_LENGTH)
-            .firstOrNull { cycleDetected(it) }
-        if (cycleLength != null) {
-            loop = stepToActivePoints.last(cycleLength)
-        }
-        return cycleLength != null
-    }
-
-    private fun <K : Comparable<K>, T> Map<K, T>.last(count: Int): List<T> =
-        map { (k, v) -> k to v }.sortedBy { it.first }.map { it.second }.subList(size - count, size)
+    private fun <K : Comparable<K>, T> Map<K, T>.last(count: Int): List<Pair<K, T>> =
+        map { (k, v) -> k to v }.sortedBy { it.first }.subList(size - count, size)
 
     private fun <K : Comparable<K>, T> Map<K, T>.first(count: Int): List<T> =
         map { (k, v) -> k to v }.sortedBy { it.first }.map { it.second }.subList(0, count)
 
 
-    private fun cycleDetected(loopLength: Int): Boolean =
+    private fun cycleDetected(): Boolean {
         if (stepToActivePoints.size >= START_DETECTION) {
-            val items = stepToActivePoints.last(CYCLE_COUNT * loopLength).map { it.hash }
-            val cycleList = items.chunked(loopLength)
-            cycleList.areEqual()
-        } else {
-            false
+            val items = stepToActivePoints.last(CYCLE_COUNT * CYCLE_LENGTH)
+            val cycleList = items.map { it.second.hash }.chunked(CYCLE_LENGTH)
+            if (cycleList.areEqual()) {
+                enteredLoopInStep = items.first().first
+                loop = stepToActivePoints.last(CYCLE_LENGTH).map { it.second }
+                return true
+            }
         }
+        return false
+    }
 
     private fun List<List<Int>>.areEqual(): Boolean {
         tailrec fun go(acc: List<List<Int>>): Boolean =
@@ -290,9 +309,6 @@ class ActiveBlock(
                 acc.second.plus<List<Int>>(next.drop(1)),
             )
         }
-
-    override fun isActive(point: Point, step: Int): Boolean =
-        point in activePoints
 }
 
 data class BlockState(
@@ -304,9 +320,19 @@ data class BlockState(
 data class LoopBlock(
     val loop: List<BlockState>,
     private val loopEntered: Int,
+    private val previousStates: Map<Int, BlockState>
 ) : Block {
     fun blocksAfter(steps: Int): Int =
         loop[(steps - loopEntered) % loop.size].count
+
+    override fun count(step: Int): Int = blockState(step)?.count ?: 0
+
+    private fun blockState(step: Int): BlockState? =
+        if (step >= loopEntered) {
+            loop[(step - loopEntered) % loop.size]
+        } else {
+            previousStates[step]
+        }
 
     fun loopIsEqual(other: LoopBlock): Boolean {
         val thisHashes = loop.map { it.hash }
@@ -317,7 +343,8 @@ data class LoopBlock(
     }
 
     override fun isActive(point: Point, step: Int): Boolean =
-        point in loop[(step - loopEntered) % loop.size].points
+        blockState(step)
+            ?.let { point in it.points } ?: false
 }
 
 fun TypedTwoDimensionalMap<Char>.next(point: Point): List<Point> =
