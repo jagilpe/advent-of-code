@@ -26,12 +26,11 @@ class TypedTwoDimensionalMap<T>(
         internalMap.mapIndexed { y, line -> line.mapIndexed { x, cell -> transform(Point.from(x, y), cell) } }
             .joinToString("\n") { line -> line.joinToString("") }
 
-
     val indices: List<Point> by lazy {
         internalMap.flatMapIndexed { y, line -> List(line.size) { x -> Point.from(x, y) } }
     }
 
-    fun withinMap(point: Point): Boolean =
+    operator fun contains(point: Point): Boolean =
         point.withinLimits(0 until width, 0 until height)
 
     fun <B> map(transform: (T) -> B): TypedTwoDimensionalMap<B> =

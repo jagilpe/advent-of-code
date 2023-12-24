@@ -54,6 +54,18 @@ enum class Orientation {
             WEST -> EAST
         }
     }
+
+    companion object {
+        fun followed(from: Point, to: Point): Orientation =
+            when {
+                from.x == to.x && from.y > to.y -> NORTH
+                from.x == to.x && from.y < to.y -> SOUTH
+                from.y == to.y && from.x > to.x -> WEST
+                from.y == to.y && from.x < to.x -> EAST
+                else -> throw IllegalArgumentException("Could not find orientation")
+            }
+    }
+
 }
 
 

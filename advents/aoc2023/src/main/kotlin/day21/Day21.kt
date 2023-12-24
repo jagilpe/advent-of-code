@@ -4,6 +4,7 @@ import com.gilpereda.aoc2022.utils.TypedTwoDimensionalMap
 import com.gilpereda.aoc2022.utils.geometry.Point
 import com.gilpereda.aoc2022.utils.map.UnlimitedTypedTwoDimensionalMap
 import com.gilpereda.aoc2022.utils.parseToMap
+import kotlin.math.absoluteValue
 
 private const val Start = 'S'
 private const val Rock = '#'
@@ -92,19 +93,15 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
 
     val loopedBlocksCount = mutableMapOf(step to Pair(0, 0))
 
-    fun count(step: Int): Map<String, Int> {
-        val (activePoints, loopedBlocks) = coordinateToBlock.values.fold(0 to 0) { (active, blocked), next ->
-            when (next) {
-                is ActiveBlock -> active + next.count(step) to blocked
-                is LoopBlock -> active to next.count(step) + blocked
-            }
-        }
-        return mapOf(
-            "active" to activePoints,
-            "looped" to loopedBlocks,
-            "total" to activePoints + loopedBlocks
-        )
-    }
+    private val blockWidth = map.originalWidth
+    private val blockHeight = map.originalHeight
+
+    private val coordinateToBlock: MutableMap<BlockCoordinate, Block> = mutableMapOf()
+    private val loopedBlocks = mutableListOf<LoopBlock>()
+
+    val blockInfo: MutableMap<Point, BlockLoopEntry> = mutableMapOf()
+
+    private var loop: Loop = null
 
     operator fun get(point: Point, step: Int): Cell {
         val normalizedPoint = point.normalized()
@@ -123,16 +120,6 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
 
     operator fun get(point: Point): Cell = get(point, step)
 
-    private val blockWidth = map.originalWidth
-    private val blockHeight = map.originalHeight
-
-    private val coordinateToBlock: MutableMap<BlockCoordinate, Block> = mutableMapOf()
-    private val loopedBlocks = mutableListOf<LoopBlock>()
-
-    val blockInfo: MutableMap<Point, BlockLoopEntry> = mutableMapOf()
-
-    private var loop: Loop = null
-
     fun next(): World {
         val newPoints = activePoints.flatMap { point -> point.neighbours.values.filter { map[it] != Rock } }.toSet()
         step += 1
@@ -142,24 +129,16 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
         return this
     }
 
-    fun dumpBlockInfo(): String {
-        val points = blockInfo.keys
-        val minX = points.minOf { it.x }
-        val minY = points.minOf { it.y }
-        val maxX = points.maxOf { it.x }
-        val maxY = points.maxOf { it.y }
-
-        val fill = "                 "
-        return (minY..maxY).joinToString("\n") { y ->
-            (minX..maxX).joinToString(" ") { x ->
-                val point = Point.from(x, y)
-                val content = blockInfo[point]
-                    ?.let { "(${it.hash} - ${it.initialStep} - ${it.stepsToLoop})" }
-                    ?: ""
-                (content + fill).take(fill.length)
-            }
+    fun count(step: Int): PointCount =
+        coordinateToBlock.values.fold(PointCount()) { acc, next ->
+            acc + next.count(step)
         }
-    }
+
+    fun circles(step: Int): Map<Int, Circle> =
+        coordinateToBlock.map { (coordinate, block) ->
+            coordinate.toCircle() to block
+        }.groupBy({ it.first }, { it.second })
+            .mapValues { (circle, blocks) -> Circle(circle, blocks) }
 
     private fun blockForCoordinate(blockCoordinates: BlockCoordinate): Block =
         coordinateToBlock.computeIfAbsent(blockCoordinates) { ActiveBlock(loop) }
@@ -210,6 +189,18 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
 
     private fun Point.normalized(): Point =
         map.transformed(this)
+
+    private val coordinateToCircle = mutableMapOf<BlockCoordinate, Int>()
+
+    private fun BlockCoordinate.toCircle(): Int =
+        coordinateToCircle.computeIfAbsent(this) {
+            listOf(x.absoluteValue, y.absoluteValue)
+                .first { tryCircle(it) }
+        }
+
+    private fun Point.tryCircle(circle: Int): Boolean =
+        ((x in -circle..circle) && (y == circle || y == -circle)) ||
+                ((y in -circle..circle) && (x == circle || x == -circle))
 }
 
 data class BlockLoopEntry(
@@ -223,7 +214,21 @@ fun Int.mapped(length: Int): Int =
 
 sealed interface Block {
     fun isActive(point: Point, step: Int): Boolean
-    fun count(step: Int): Int
+    fun count(step: Int): PointCount
+    fun inLoop(step: Int): Boolean
+}
+
+data class PointCount(
+    val active: Int = 0,
+    val looped: Int = 0,
+    val total: Int = 0,
+) {
+    operator fun plus(other: PointCount): PointCount =
+        PointCount(
+            active = active + other.active,
+            looped = looped + other.looped,
+            total = total + other.total,
+        )
 }
 
 private const val GAP = 10
@@ -240,7 +245,11 @@ class ActiveBlock(
     private var activePoints: Set<Point> = emptySet()
     val stepToActivePoints: MutableMap<Int, BlockState> = mutableMapOf()
 
-    override fun count(step: Int): Int = stepToActivePoints[step]?.count ?: 0
+    override fun count(step: Int): PointCount =
+        stepToActivePoints[step]?.count
+            ?.let { PointCount(active = it, total = it) } ?: PointCount()
+
+    override fun inLoop(step: Int): Boolean = false
 
     override fun isActive(point: Point, step: Int): Boolean =
         point in activePoints
@@ -311,6 +320,17 @@ class ActiveBlock(
         }
 }
 
+data class Circle(
+    val level: Int,
+    val blocks: List<Block>,
+) {
+    fun isFinished(step: Int): Boolean =
+        blocks.all { it.inLoop(step) }
+
+    fun count(step: Int): Int =
+        blocks.sumOf { it.count(step).total }
+}
+
 data class BlockState(
     val hash: Int,
     val points: Set<Point>,
@@ -325,10 +345,23 @@ data class LoopBlock(
     fun blocksAfter(steps: Int): Int =
         loop[(steps - loopEntered) % loop.size].count
 
-    override fun count(step: Int): Int = blockState(step)?.count ?: 0
+    override fun count(step: Int): PointCount =
+        if (inLoop(step)) {
+            val points = loop[(step - loopEntered) % loop.size].count
+            PointCount(
+                looped = points,
+                total = points,
+            )
+        } else {
+            blockState(step)?.count
+                ?.let { PointCount(active = it, total = it) } ?: PointCount()
+        }
+
+    override fun inLoop(step: Int): Boolean =
+        step >= loopEntered
 
     private fun blockState(step: Int): BlockState? =
-        if (step >= loopEntered) {
+        if (inLoop(step)) {
             loop[(step - loopEntered) % loop.size]
         } else {
             previousStates[step]
@@ -349,4 +382,4 @@ data class LoopBlock(
 
 fun TypedTwoDimensionalMap<Char>.next(point: Point): List<Point> =
     point.neighbours.values
-        .filter { withinMap(it) && get(it) != Rock }
+        .filter { contains(it) && get(it) != Rock }

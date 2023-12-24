@@ -4,16 +4,37 @@ import com.gilpereda.aoc2022.BaseTest
 import com.gilpereda.aoc2022.Executable
 
 class Day23Test : BaseTest() {
-    override val example: String
-        get() = TODO()
+    override val example: String = """
+        #S#####################
+        #.......#########...###
+        #######.#########.#.###
+        ###.....#.>X>.###.#.###
+        ###v#####.#v#.###.#.###
+        ###X>...#.#.#.....#...#
+        ###v###.#.#.#########.#
+        ###...#.#.#.......#...#
+        #####.#.#.#######.#.###
+        #.....#.#.#.......#...#
+        #.#####.#.#.#########v#
+        #.#...#...#...###...>X#
+        #.#.#v#######v###.###v#
+        #...#X>.#...>X>.#.###.#
+        #####v#.#.###v#.#.###.#
+        #.....#...#...#.#.#...#
+        #.#########.###.#.#.###
+        #...###...#...#...#.###
+        ###.###.#.###v#####v###
+        #...#...#.#.>X>.#.>X###
+        #.###.###.#.###.#.#v###
+        #.....###...###...#...#
+        #####################O#
+    """.trimIndent()
 
-    override val resultExample1: String
-        get() = TODO()
+    override val resultExample1: String = "94"
 
-    override val resultExample2: String
-        get() = TODO()
+    override val resultExample2: String = "154"
 
-    override val resultReal1: String = ""
+    override val resultReal1: String = "2314"
 
     override val resultReal2: String = ""
 
