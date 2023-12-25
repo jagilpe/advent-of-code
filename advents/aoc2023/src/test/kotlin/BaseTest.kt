@@ -46,7 +46,7 @@ abstract class BaseTest {
         check(example to resultExample1, ::runExample1)
     }
 
-    @Test
+//    @Test
     fun `should return the result - part 1`() {
         assertThat(runReal1(inputSequence)).isEqualTo(resultReal1)
     }
@@ -56,7 +56,7 @@ abstract class BaseTest {
         check(example2 to resultExample2, ::runExample2)
     }
 
-//    @Test
+    @Test
     fun `should return the result - part 2`() {
         assertThat(runReal2(inputSequence)).isEqualTo(resultReal2)
     }

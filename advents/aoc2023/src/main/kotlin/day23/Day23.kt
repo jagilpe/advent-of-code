@@ -76,63 +76,40 @@ class ForestMap(
         }
 }
 
-typealias Route = List<Graph.Track>
+typealias Route = List<Graph.Crossroad>
 
 class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: Boolean) {
     private val pointsInPath = map.valuesIndexed().filter { it.second != Forest }.map { it.first }
-    private val start = map.valuesIndexed().first { it.second == Start }.first
-    private val finish = map.valuesIndexed().first { it.second == Finish }.first
+    private val startPoint = map.valuesIndexed().first { it.second == Start }.first
+    private val finishPoint = map.valuesIndexed().first { it.second == Finish }.first
     val tracks: List<Track> = findTracks()
-    private val startTrack by lazy { tracks.first { start in it } }
-    private val finishTrack by lazy { tracks.first { finish in it } }
+    private val startTrack by lazy { tracks.first { startPoint in it } }
+    private val finishTrack by lazy { tracks.first { finishPoint in it } }
     private val crossroads: Set<Crossroad> = findCrossroads()
+    private val startCrossroad = crossroads.first { startTrack in it }
+    private val finishCrossroad = crossroads.first { finishTrack in it }
 
     fun findLongestRoute(): Int {
-        var iter = 0
-        tailrec fun go(open: List<Route>, acc: Int = 0): Int {
-            if (iter++ % 10_000 == 0) {
-                println("iter: $iter, open: ${open.size}, acc: $acc")
-            }
-            return if (open.isEmpty()) {
-                acc - 1
-            } else {
-                val current = open.first()
-                val newOpen = open.drop(1)
-                val next = current.next()
-                if (current.finished) {
-                    go(newOpen, maxOf(acc, current.length))
-                } else {
-                    go(newOpen + next, acc)
-                }
-            }
-        }
-
-
-        return go(listOf(listOf(startTrack)))
+        TODO()
+//        tailrec fun go(open: List<Route>)
+//        return go(listOf(listOf(startTrack)))
     }
 
-    private fun Route.next(): List<Route> {
-        val last = first()
-        val secondLast = getOrNull(1)
-        val adjacents = last.adjacents(secondLast)
-        return if (adjacents.count { it in this } >= 2) {
-            emptyList()
-        } else {
-            adjacents
-                .filter { adjacent -> adjacent != secondLast && adjacent !in this }
-                .map { listOf(it) + this }
-        }
-    }
-
-    private val Route.length: Int
-        get() = sumOf { it.length } + size - 1
+//    private fun Route.next(): List<Route> {
+//        val last = first()
+//        val secondLast = getOrNull(1)
+//        val adjacents = last.adjacents(secondLast)
+//        return adjacents
+//                .filter { adjacent -> adjacent != secondLast && adjacent !in this }
+//                .map { listOf(it) + this }
+//    }
 
     private val Route.finished: Boolean
-        get() = first == finishTrack
+        get() = first == finishCrossroad
 
     private fun findTracks(): List<Track> {
         var nextTrackName = 'a'
-        val startingTrack = Track(start, nextTrackName++)
+        val startingTrack = Track(startPoint, nextTrackName++)
         tailrec fun go(
             current: Track,
             remainingPoints: List<Point>,
@@ -161,7 +138,7 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
                 }
             }
 
-        return go(startingTrack, pointsInPath - start).fillTrackAdjacents()
+        return go(startingTrack, pointsInPath - startPoint).fillTrackAdjacents()
     }
 
     private fun List<Track>.fillTrackAdjacents(): List<Track> =

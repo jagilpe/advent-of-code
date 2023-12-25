@@ -14,12 +14,11 @@ class Day24Test : BaseTest() {
 
     override val resultExample1: String = "2"
 
-    override val resultExample2: String
-        get() = TODO()
+    override val resultExample2: String = "47"
 
-    override val resultReal1: String = ""
+    override val resultReal1: String = "20963"
 
-    override val resultReal2: String = ""
+    override val resultReal2: String = "999782576459892"
 
     override val input: String = "/day24/input"
 
