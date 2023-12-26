@@ -16,8 +16,6 @@ repositories {
 
 dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.0")
-    implementation("org.jetbrains.kotlinx:multik-core:0.2.2")
-    implementation("org.jetbrains.kotlinx:multik-default:0.2.2")
     testImplementation(kotlin("test"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.7.3")
     testImplementation("org.assertj:assertj-core:3.24.2")

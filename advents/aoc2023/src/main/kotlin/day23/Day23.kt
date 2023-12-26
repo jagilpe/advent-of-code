@@ -16,6 +16,9 @@ fun firstTask(input: Sequence<String>): String {
 /**
  * 3095 too low
  * 3311 too low
+ * 7602 not right
+ * 7842 not right
+ *
  */
 fun secondTask(input: Sequence<String>): String {
     val graph = Graph(input.toList().parseToMap(Tile.Companion::from), false)
@@ -76,8 +79,6 @@ class ForestMap(
         }
 }
 
-typealias Route = List<Graph.Crossroad>
-
 class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: Boolean) {
     private val pointsInPath = map.valuesIndexed().filter { it.second != Forest }.map { it.first }
     private val startPoint = map.valuesIndexed().first { it.second == Start }.first
@@ -89,10 +90,53 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
     private val startCrossroad = crossroads.first { startTrack in it }
     private val finishCrossroad = crossroads.first { finishTrack in it }
 
+//    fun findLongestRoute(): Int {
+//        var iter = 0
+//        tailrec fun go(open: MutableList<Route>, longestRoute: Route? = null): Int {
+//            if (iter++ % 1_000 == 0)
+//                println("Iter: $iter, open: ${open.size}, max length: ${longestRoute?.length}")
+//            return if (open.isEmpty()) {
+//                longestRoute!!.length
+//            } else {
+//                val current = open.minBy { it.length }
+//                if (current.finished) {
+//                    val newLongest = if (longestRoute == null || longestRoute.length < current.length) current else longestRoute
+//                    open.remove(current)
+//                    go(open, newLongest)
+//                } else {
+//                    val newRoutes = current.newRoutes()
+//                    open.remove(current)
+//                    open.addAll(newRoutes)
+//                    go(open, longestRoute)
+//                }
+//            }
+//        }
+//
+//        return go(mutableListOf(Route(listOf(State(startCrossroad, startTrack)))))
+//    }
+
     fun findLongestRoute(): Int {
-        TODO()
-//        tailrec fun go(open: List<Route>)
-//        return go(listOf(listOf(startTrack)))
+//        var iter = 0
+        val visited = mutableSetOf<String>()
+        fun go(current: Crossroad, distance: Int): Int {
+            return if (current == finishCrossroad) {
+                distance + finishTrack.length - 1
+            } else {
+                visited.add(current.name)
+                val max = current.adjacents
+                    .filter { (_, crossroad) -> crossroad.name !in visited }
+                    .maxOfOrNull { (track, crossroad) ->
+                        go(
+                            crossroad,
+                            distance + 1 + track.length
+                        )
+                    }
+                visited.remove(current.name)
+                max ?: 0
+            }
+        }
+
+        return go(startCrossroad, startTrack.length + 1)
     }
 
 //    private fun Route.next(): List<Route> {
@@ -104,12 +148,21 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
 //                .map { listOf(it) + this }
 //    }
 
+    private fun Route.newRoutes(): List<Route> {
+        val tracks = states.map { it.cameFrom }
+        return states.last().crossroad.adjacents.filter { it.key !in tracks }.map { State(it.value, it.key) }
+            .map { Route(states + it) }
+    }
+
     private val Route.finished: Boolean
-        get() = first == finishCrossroad
+        get() = states.last().crossroad == finishCrossroad
+
+    private val Route.length: Int
+        get() = states.sumOf { it.cameFrom.length } + finishTrack.length + states.size - 1
 
     private fun findTracks(): List<Track> {
-        var nextTrackName = 'a'
-        val startingTrack = Track(startPoint, nextTrackName++)
+        val trackFactory = trackFactory()
+        val startingTrack = trackFactory(startPoint)
         tailrec fun go(
             current: Track,
             remainingPoints: List<Point>,
@@ -124,7 +177,7 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
                 if (neighbours.isEmpty()) {
                     val newAcc = acc + current
                     val point = open.first()
-                    val newTrack = Track(point, nextTrackName++)
+                    val newTrack = trackFactory(point)
                     go(newTrack, remainingPoints - point, open.drop(1), newAcc)
                 } else if (neighbours.size == 1) {
                     val point = neighbours.first()
@@ -133,7 +186,7 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
                 } else {
                     val newAcc = acc + current.dropLast()
                     val point = neighbours.first()
-                    val newTrack = Track(point, nextTrackName++)
+                    val newTrack = trackFactory(point)
                     go(newTrack, remainingPoints - point, open - point + neighbours.drop(1), newAcc)
                 }
             }
@@ -152,7 +205,7 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
         }
 
     private fun findCrossroads(): Set<Crossroad> {
-        var crossroadId = 1
+        val crossRoadsFactory = crossroadFactory()
         fun Set<Crossroad>.addCrossroad(track: Track, adjacents: Set<Track>): Set<Crossroad> =
             if (adjacents.isNotEmpty()) {
                 val currentUpCrossroads = filter { cx -> adjacents.all { it in cx } }
@@ -162,7 +215,7 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
                     if (track !in upCrossroad) upCrossroad.add(track)
                     this + upCrossroad
                 } else {
-                    this + Crossroad("${crossroadId++}", adjacents + track)
+                    this + crossRoadsFactory(adjacents + track)
                 }
             } else {
                 this
@@ -182,8 +235,6 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
             }
         }
 
-    private
-
     fun dumpTracks(): String {
         val indexedTracks = tracks.mapIndexed { index, track -> 'a' + index to track }
         return map.dump { point, tile ->
@@ -192,11 +243,26 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
         }
     }
 
+    inner class Route(
+        val states: List<State>,
+    ) {
+        override fun toString(): String =
+            states
+                .joinToString(separator = " -> ", postfix = if (finished) " -> ${finishTrack.name}" else "") {
+                    "${it.cameFrom.name} -> ${it.crossroad.name}"
+                }
+    }
+
+    inner class State(
+        val crossroad: Graph.Crossroad,
+        val cameFrom: Graph.Track
+    )
+
     inner class Track(
-        private val name: Char,
+        val name: String,
         private val points: MutableList<Point> = mutableListOf()
     ) {
-        constructor(point: Point, name: Char) : this(name, mutableListOf(point))
+        constructor(name: String, point: Point) : this(name, mutableListOf(point))
 
         val length: Int by lazy { points.size }
 
@@ -247,13 +313,6 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
             points.last()
                 .neighbours.values.filter { it !in points }
 
-        private fun Point.followsTheSlope(): (Point) -> Boolean = { other ->
-            when (val tile = map[this]) {
-                is Slope -> tile.match(Orientation.followed(other, this))
-                else -> true
-            }
-        }
-
         override fun toString(): String = "$name - $length"
     }
 
@@ -278,6 +337,36 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
         }
 
         override fun toString(): String = "CX $name: ${tracks.joinToString(" - ")}"
+    }
+
+    private fun trackFactory(): (point: Point,) -> Track {
+        var char1 = 'a'
+        var char2 = 'a'
+        return { point ->
+            val name = "$char1$char2"
+            if (char2 == 'z') {
+                char2 = 'a'
+                char1 += 1
+            } else {
+                char2 += 1
+            }
+            Track(name, point)
+        }
+    }
+
+    private fun crossroadFactory(): (trackList: Set<Track>) -> Crossroad {
+        var char1 = 'A'
+        var char2 = 'A'
+
+        return { trackList ->
+            val name = "$char1$char2"
+            if (char2 == 'Z') {
+                char2 = 'A'
+                char1 += 1
+            } else {
+                char2 += 1
+            }
+            Crossroad(name, trackList)}
     }
 }
 
