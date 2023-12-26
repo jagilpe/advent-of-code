@@ -22,13 +22,14 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.7.3")
     testImplementation("org.assertj:assertj-core:3.24.2")
     testImplementation("org.junit.jupiter:junit-jupiter-params")
+    testImplementation("org.junit.jupiter:junit-jupiter-params")
 }
 
 tasks.test {
     useJUnitPlatform()
     testLogging.showStandardStreams = true
-    minHeapSize = "1024m"
-    maxHeapSize = "4096m"
+    minHeapSize = "2048m"
+    maxHeapSize = "6144m"
 }
 
 tasks.withType<KotlinCompile> {

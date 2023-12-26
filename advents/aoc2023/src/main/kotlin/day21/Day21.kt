@@ -54,23 +54,21 @@ fun firstTask(input: Sequence<String>, steps: Int): String {
         .take(steps).last().count().toString()
 }
 
+/**
+ * 200 -> 26538
+ */
 fun secondTaskExample(input: Sequence<String>): String =
-    secondTask(input, 500 + 1)
+    secondTask(input, 5000)
 
 fun secondTaskReal(input: Sequence<String>): String =
-    secondTask(input, 5000 + 1)
+    secondTask(input, 26501365)
 
 fun secondTask(input: Sequence<String>, steps: Int): String {
     val world = World(input.toList().parseToMap { c -> c }.toUnlimited())
 
-//    val output = File(Files.createTempFile("output", ".txt").toUri())
     return generateSequence(world) { it.next() }
-        .take(steps).last().count().toString()
-        .also {
-            world
-//            println(output.absolutePath)
-//            output.writeText(world.dumpBlockInfo())
-        }
+//        .take(steps).last().count().toString()
+        .first { it.countFor(steps) != null }.countFor(steps).toString()
 }
 
 
@@ -95,11 +93,14 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
 
     private val blockWidth = map.originalWidth
     private val blockHeight = map.originalHeight
+    private var loopedCircles = 0
 
     private val coordinateToBlock: MutableMap<BlockCoordinate, Block> = mutableMapOf()
     private val loopedBlocks = mutableListOf<LoopBlock>()
 
     val blockInfo: MutableMap<Point, BlockLoopEntry> = mutableMapOf()
+
+    private val calculationTable = CalculationTable(map.originalWidth * 2)
 
     private var loop: Loop = null
 
@@ -126,6 +127,7 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
         activePoints = updateBlocks(newPoints)
         loopedBlocksCount[step] = loopedBlocks.count() to loopedBlocks.sumOf { it.blocksAfter(step) }
         if (step % 200 == 0) println("Step $step, active points: ${activePoints.size}")
+        tryGenerateCalculation()
         return this
     }
 
@@ -134,7 +136,7 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
             acc + next.count(step)
         }
 
-    fun circles(step: Int): Map<Int, Circle> =
+    private fun circles(): Map<Int, Circle> =
         coordinateToBlock.map { (coordinate, block) ->
             coordinate.toCircle() to block
         }.groupBy({ it.first }, { it.second })
@@ -180,6 +182,9 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
     fun count(): Int =
         activePoints.count() + blockPoints()
 
+    fun countFor(step: Int): Long? =
+        calculationTable.tryResult(step)
+
     private fun blockPoints(): Int =
         coordinateToBlock.values.filterIsInstance<LoopBlock>()
             .sumOf { it.blocksAfter(step) }
@@ -201,7 +206,101 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
     private fun Point.tryCircle(circle: Int): Boolean =
         ((x in -circle..circle) && (y == circle || y == -circle)) ||
                 ((y in -circle..circle) && (x == circle || x == -circle))
+
+    private fun tryGenerateCalculation() {
+        val circles = circles()
+        val newFinishedCircles = circles.count { it.value.inLoop(step) }
+        if (newFinishedCircles != loopedCircles) {
+            loopedCircles = newFinishedCircles
+            println("New circle in loop, ${10 - loopedCircles} to go")
+        }
+        if (loopedCircles >= 10) {
+            calculationTable.addCirclesData(circles)
+        }
+    }
+
+    inner class CalculationTable(
+        val steps: Int,
+    ) {
+        private val lastCirclesCount = 5
+        private val stepToIncreaseBetweenNonLoopedCircles = mutableMapOf<Int, Int>()
+        private val stepToIncreaseToFirstNonLoopedCircle = mutableMapOf<Int, Int>()
+        private val stepToLastCircles = mutableMapOf<Int, List<Int>>()
+        private val stepToFirstLoopedCircle = mutableMapOf<Int, Int>()
+        private var loopedBlockSize: Double? = null
+        private lateinit var circles: Map<Int, Circle>
+
+        fun tryResult(step: Int): Long? =
+            if (finished) {
+                result(step)
+            } else {
+                null
+            }
+
+        fun addCirclesData(circles: Map<Int, Circle>) {
+            (0 until this.steps).forEach { stepInLoop ->
+                val step = this@World.step - calculationTable.steps + stepInLoop
+                this.circles = circles
+                stepToFirstLoopedCircle[stepInLoop] = stepToFirstLoopedCircle(step)
+                stepToIncreaseBetweenNonLoopedCircles[stepInLoop] = stepToIncreaseBetweenNonLoopedCircles(step)
+                stepToIncreaseToFirstNonLoopedCircle[stepInLoop] = stepToIncreaseToFirstNonLoopedCircle(step)
+                stepToLastCircles[stepInLoop] = stepToLastCircles(step)
+                loopedBlockSize = loopedBlockSize ?: loopedBlockSize(step)
+            }
+        }
+
+        private fun stepToFirstLoopedCircle(step: Int): Int =
+            circles[0]!!.count(step)
+
+        private fun stepToIncreaseBetweenNonLoopedCircles(step: Int): Int =
+            circles.entries.filter { !it.value.inLoop(step) }.sortedBy { it.key }.map { it.value }
+                .let { (_, _, third, forth) ->
+                    third.count(step) - forth.count(step)
+                }
+
+        private fun stepToIncreaseToFirstNonLoopedCircle(step: Int): Int =
+            circles.entries.filter { !it.value.inLoop(step) }.sortedBy { it.key }.map { it.value }
+                .let { (first, second) ->
+                    first.count(step) - second.count(step)
+                }
+
+        private fun stepToLastCircles(step: Int): List<Int> =
+            circles.entries.filter { !it.value.inLoop(step) }
+                .sortedBy { it.key }
+                .map { it.value.count(step) }
+                .takeLast(lastCirclesCount)
+
+        private fun loopedBlockSize(step: Int): Double =
+            circles.entries.filter { it.value.inLoop(step) }[1].value.count(step) / 8.0
+
+        private val finished: Boolean
+            get() = stepToFirstLoopedCircle.size == steps &&
+                    stepToLastCircles.size == steps &&
+                    stepToIncreaseBetweenNonLoopedCircles.size == steps &&
+                    stepToIncreaseToFirstNonLoopedCircle.size == steps &&
+                    loopedBlockSize != null
+
+        private fun result(step: Int): Long {
+            val firstLoopEnter = (circles[0]!!.blocks.first() as LoopBlock).loopEntered
+            val stepInLoop = (step - firstLoopEnter) % steps
+            val firstCircleSize = stepToFirstLoopedCircle[stepInLoop]!!
+            val loopedCircles = (step - map.originalWidth) / this.steps
+            val loopedBlocks = (1 .. loopedCircles).sumOf { 8.0 * it }.toLong()
+            val loopedBlocksSize = (loopedBlocks * loopedBlockSize!!).toLong()
+
+            val notLoopedCircles = loopedCircles + 2
+            val lastNonLoopedCirclesSize = stepToLastCircles[stepInLoop]!!.sum()
+            val blocksBetweenNotLoopedCircles = stepToIncreaseBetweenNonLoopedCircles[stepInLoop]!!
+            val middleNonLoopedCircles = generateSequence(stepToLastCircles[stepInLoop]!![0] + blocksBetweenNotLoopedCircles) {
+                it + blocksBetweenNotLoopedCircles
+            }.take(notLoopedCircles - lastCirclesCount).toList()
+            val firstNonLoopeCircleSize = middleNonLoopedCircles.last() + stepToIncreaseToFirstNonLoopedCircle[stepInLoop]!!
+            val middleNonLoopCirclesSize = middleNonLoopedCircles.sum()
+            return firstCircleSize  + loopedBlocksSize + lastNonLoopedCirclesSize + firstNonLoopeCircleSize + middleNonLoopCirclesSize
+        }
+    }
 }
+
 
 data class BlockLoopEntry(
     val initialStep: Int,
@@ -324,7 +423,7 @@ data class Circle(
     val level: Int,
     val blocks: List<Block>,
 ) {
-    fun isFinished(step: Int): Boolean =
+    fun inLoop(step: Int): Boolean =
         blocks.all { it.inLoop(step) }
 
     fun count(step: Int): Int =
@@ -339,7 +438,7 @@ data class BlockState(
 
 data class LoopBlock(
     val loop: List<BlockState>,
-    private val loopEntered: Int,
+    val loopEntered: Int,
     private val previousStates: Map<Int, BlockState>
 ) : Block {
     fun blocksAfter(steps: Int): Int =

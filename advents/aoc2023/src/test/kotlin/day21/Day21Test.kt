@@ -28,7 +28,7 @@ class Day21Test : BaseTest() {
 
     override val resultExample1: String = "16"
 
-    override val resultExample2: String = "668697"
+    override val resultExample2: String = "16733044"
 
     override val resultReal1: String = "3574"
 
