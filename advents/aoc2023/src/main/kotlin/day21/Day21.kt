@@ -4,6 +4,8 @@ import com.gilpereda.aoc2022.utils.TypedTwoDimensionalMap
 import com.gilpereda.aoc2022.utils.geometry.Point
 import com.gilpereda.aoc2022.utils.map.UnlimitedTypedTwoDimensionalMap
 import com.gilpereda.aoc2022.utils.parseToMap
+import java.io.File
+import java.nio.file.Files
 import kotlin.math.absoluteValue
 
 private const val Start = 'S'
@@ -60,6 +62,9 @@ fun firstTask(input: Sequence<String>, steps: Int): String {
 fun secondTaskExample(input: Sequence<String>): String =
     secondTask(input, 5000)
 
+/**
+ * 300044107633559 too low
+ */
 fun secondTaskReal(input: Sequence<String>): String =
     secondTask(input, 26501365)
 
@@ -67,8 +72,35 @@ fun secondTask(input: Sequence<String>, steps: Int): String {
     val world = World(input.toList().parseToMap { c -> c }.toUnlimited())
 
     return generateSequence(world) { it.next() }
-//        .take(steps).last().count().toString()
         .first { it.countFor(steps) != null }.countFor(steps).toString()
+        .also {
+            println("solution: $it")
+            val output = File(Files.createTempFile("output", ".csv").toUri())
+            var stepAfterFinishingLevel = 0
+            var lastStepFinished = 0
+            output.writeText(
+                listOf("step", "step after finishing level", "finished level", *List(50) { "level $it" }.toTypedArray()).joinToString(
+                    separator = ";",
+                    postfix = "\n"
+                )
+            )
+            (1..1439).forEach { step ->
+                val circles = world.circles()
+                val finishedLevel = circles.entries.filter { it.value.inLoop(step) }.maxOfOrNull { it.key } ?: 0
+                if (finishedLevel != lastStepFinished) {
+                    lastStepFinished = finishedLevel
+                    stepAfterFinishingLevel = 0
+                }
+                val line = listOf(
+                    "$step",
+                    "${stepAfterFinishingLevel++}",
+                    "$finishedLevel",
+                    *circles.map { "${it.value.count(step)}" }.toTypedArray()
+                ).joinToString(separator = ";", postfix = "\n")
+                output.appendText(line)
+            }
+            println(output.absolutePath)
+        }
 }
 
 
@@ -136,7 +168,7 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
             acc + next.count(step)
         }
 
-    private fun circles(): Map<Int, Circle> =
+    fun circles(): Map<Int, Circle> =
         coordinateToBlock.map { (coordinate, block) ->
             coordinate.toCircle() to block
         }.groupBy({ it.first }, { it.second })
@@ -212,9 +244,9 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
         val newFinishedCircles = circles.count { it.value.inLoop(step) }
         if (newFinishedCircles != loopedCircles) {
             loopedCircles = newFinishedCircles
-            println("New circle in loop, ${10 - loopedCircles} to go")
+            println("New circle in loop, ${5 - loopedCircles} to go")
         }
-        if (loopedCircles >= 10) {
+        if (loopedCircles >= 5) {
             calculationTable.addCirclesData(circles)
         }
     }
@@ -285,12 +317,12 @@ class World(val map: UnlimitedTypedTwoDimensionalMap<Char>) {
             val stepInLoop = (step - firstLoopEnter) % steps
             val firstCircleSize = stepToFirstLoopedCircle[stepInLoop]!!
             val loopedCircles = (step - map.originalWidth) / this.steps
-            val loopedBlocks = (1 .. loopedCircles).sumOf { 8.0 * it }.toLong()
+            val loopedBlocks = (1 .. loopedCircles).sumOf { 8L * it }
             val loopedBlocksSize = (loopedBlocks * loopedBlockSize!!).toLong()
 
             val notLoopedCircles = loopedCircles + 2
-            val lastNonLoopedCirclesSize = stepToLastCircles[stepInLoop]!!.sum()
-            val blocksBetweenNotLoopedCircles = stepToIncreaseBetweenNonLoopedCircles[stepInLoop]!!
+            val lastNonLoopedCirclesSize = stepToLastCircles[stepInLoop]!!.sumOf { it.toLong() }
+            val blocksBetweenNotLoopedCircles = stepToIncreaseBetweenNonLoopedCircles[stepInLoop]!!.toLong()
             val middleNonLoopedCircles = generateSequence(stepToLastCircles[stepInLoop]!![0] + blocksBetweenNotLoopedCircles) {
                 it + blocksBetweenNotLoopedCircles
             }.take(notLoopedCircles - lastCirclesCount).toList()
@@ -358,7 +390,7 @@ class ActiveBlock(
     }
 
     fun toLoopBlock(): LoopBlock =
-        LoopBlock(loop = loop!!, loopEntered = enteredLoopInStep!!, previousStates = stepToActivePoints)
+        LoopBlock(loop = loop!!, loopEntered = enteredLoopInStep!!, previousStates = stepToActivePoints.cleaned())
 
     fun update(step: Int, points: Set<Point>): Boolean {
         stepToActivePoints[step] = BlockState(hash = points.hashCode(), points = points, count = points.size)
@@ -373,6 +405,9 @@ class ActiveBlock(
             }
         } ?: cycleDetected()
     }
+
+    private fun Map<Int, BlockState>.cleaned(): Map<Int, BlockState> =
+        mapValues { (_, block) -> block.copy(points = emptySet()) }
 
     private fun <K : Comparable<K>, T> Map<K, T>.last(count: Int): List<Pair<K, T>> =
         map { (k, v) -> k to v }.sortedBy { it.first }.subList(size - count, size)

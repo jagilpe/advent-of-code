@@ -51,12 +51,12 @@ abstract class BaseTest {
         assertThat(runReal1(inputSequence)).isEqualTo(resultReal1)
     }
 
-    @Test
+//    @Test
     fun `should work with the example - part 2`() {
         check(example2 to resultExample2, ::runExample2)
     }
 
-//    @Test
+    @Test
     fun `should return the result - part 2`() {
         assertThat(runReal2(inputSequence)).isEqualTo(resultReal2)
     }
