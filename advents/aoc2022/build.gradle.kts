@@ -1,31 +1,26 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.7.22"
+    val kotlinVersion: String by System.getProperties()
+    kotlin("jvm") version (kotlinVersion)
     application
 }
 
-group = "com.gilpereda.advents-of-code"
-version = "1.0-SNAPSHOT"
-
-repositories {
-    mavenCentral()
-}
-
 dependencies {
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.14.1")
+    implementation(libs.bundles.aoc.implementation)
+
     testImplementation(kotlin("test"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.4")
-    testImplementation("org.assertj:assertj-core:3.23.1")
+    testImplementation(libs.bundles.aoc.test)
     testImplementation("org.junit.jupiter:junit-jupiter-params")
 }
 
 tasks.test {
     useJUnitPlatform()
+    testLogging.showStandardStreams = true
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "17"
+    kotlinOptions.jvmTarget = "21"
 }
 
 application {

@@ -1,11 +1,10 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
-    kotlin("jvm") version "1.6.0"
+    val kotlinVersion: String by System.getProperties()
+    kotlin("jvm") version (kotlinVersion)
+    application
 }
-
-group = "com.gilpereda.advents-of-code"
-version = "1.0-SNAPSHOT"
-
-val junitVersion by extra("5.7.0")
 
 repositories {
     mavenCentral()
@@ -14,25 +13,25 @@ repositories {
 dependencies {
     implementation(platform("io.arrow-kt:arrow-stack:1.0.1"))
 
-    implementation(kotlin("stdlib"))
+    implementation(libs.bundles.aoc.implementation)
     implementation("io.arrow-kt:arrow-core")
     implementation("org.jetbrains.kotlinx:multik-api:0.1.1")
     implementation("org.jetbrains.kotlinx:multik-default:0.1.1")
 
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-    testImplementation("org.assertj:assertj-core:3.18.1")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:$junitVersion")
-
-    testRuntimeOnly ("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
+    testImplementation(kotlin("test"))
+    testImplementation(libs.bundles.aoc.test)
+    testImplementation("org.junit.jupiter:junit-jupiter-params")
 }
 
 tasks {
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions.jvmTarget = "11"
+    withType<KotlinCompile> {
+        kotlinOptions.jvmTarget = "21"
     }
 
     withType<Test> {
         useJUnitPlatform()
+        testLogging.showStandardStreams = true
+        minHeapSize = "2048m"
+        maxHeapSize = "6144m"
     }
 }
