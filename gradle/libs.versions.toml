@@ -1,0 +1,17 @@
+[versions]
+assertj = "3.24.2"
+jackson = "2.16.1"
+kotlin = "1.9.22"
+kotlinCoroutines = "1.7.3"
+
+[libraries]
+kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm", version.ref = "kotlinCoroutines" }
+jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj"}
+
+[bundles]
+aoc-implementation = [ "kotlinx-coroutines", "jackson-module-kotlin" ]
+aoc-test = [ "assertj-core" ]
+
+[plugins]
+jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

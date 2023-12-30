@@ -1,13 +1,13 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    val kotlinVersion: String by System.getProperties()
-    kotlin("jvm") version (kotlinVersion)
+    alias(libs.plugins.jvm)
     application
 }
 
 dependencies {
     implementation(libs.bundles.aoc.implementation)
+    implementation(project(":common:commons"))
 
     testImplementation(kotlin("test"))
     testImplementation(libs.bundles.aoc.test)

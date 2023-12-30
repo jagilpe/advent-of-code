@@ -1,6 +1,6 @@
 package com.gilpereda.aoc2022.day20
 
-import com.gilpereda.aoc2022.utils.math.leastCommonMultiple
+import com.gilpereda.adventofcode.commons.math.leastCommonMultiple
 
 fun firstTask(input: Sequence<String>): String {
     val modules = input.toList().parsed()
