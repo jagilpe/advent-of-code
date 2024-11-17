@@ -1,0 +1,1 @@
+package com.gilpereda.aoc2024

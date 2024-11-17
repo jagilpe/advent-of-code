@@ -297,7 +297,7 @@ class Graph(private val map: TypedTwoDimensionalMap<Tile>, private val partOne: 
             routes(points.first())
 
         fun routesDown(): List<Point> =
-            routes(points.last)
+            routes(points.last())
 
         private fun routes(point: Point): List<Point> =
             point.neighbours.values // These should be the cross points
