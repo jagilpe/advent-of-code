@@ -3,9 +3,7 @@ package com.gilpereda.aoc2024
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
-
 abstract class BaseTest {
-
     abstract val example: String
     open val example2: String
         get() = example
@@ -19,24 +17,25 @@ abstract class BaseTest {
     open val run1: Executable = { TODO() }
     open val run2: Executable = { TODO() }
 
-    protected open fun runExample1(sequence: Sequence<String>): String =
-        run1(sequence)
+    protected open fun runExample1(sequence: Sequence<String>): String = run1(sequence)
 
-    protected open fun runReal1(sequence: Sequence<String>): String =
-        run1(sequence)
+    protected open fun runReal1(sequence: Sequence<String>): String = run1(sequence)
 
-    protected open fun runExample2(sequence: Sequence<String>): String =
-        run2(sequence)
+    protected open fun runExample2(sequence: Sequence<String>): String = run2(sequence)
 
-    protected open fun runReal2(sequence: Sequence<String>): String =
-        run2(sequence)
+    protected open fun runReal2(sequence: Sequence<String>): String = run2(sequence)
 
     protected val inputSequence: Sequence<String>
         get() =
-            BaseTest::class.java.getResourceAsStream(input)!!.bufferedReader().lineSequence()
+            BaseTest::class.java
+                .getResourceAsStream(input)!!
+                .bufferedReader()
+                .lineSequence()
 
-
-    protected fun check(example: Pair<String, String>, run: Executable) {
+    protected fun check(
+        example: Pair<String, String>,
+        run: Executable,
+    ) {
         val (input, expected) = example
         assertThat(run(input.splitToSequence("\n"))).isEqualTo(expected)
     }
