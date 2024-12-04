@@ -4,23 +4,27 @@ import com.gilpereda.aoc2024.BaseTest
 import com.gilpereda.aoc2024.Executable
 
 class Day04Test : BaseTest() {
-    override val example: String
-        get() = TODO()
+    override val example: String =
+        """
+        MMMSXXMASM
+        MSAMXMSMSA
+        AMXSXMAAMM
+        MSAMASMSMX
+        XMASAMXAMM
+        XXAMMXXAMA
+        SMSMSASXSS
+        SAXAMASAAA
+        MAMMMXMMMM
+        MXMXAXMASX
+        """.trimIndent()
 
-    override val example2: String
-        get() = TODO()
+    override val resultExample1: String = "18"
 
-    override val resultExample1: String
-        get() = TODO()
+    override val resultReal1: String = "2496"
 
-    override val resultReal1: String
-        get() = TODO()
+    override val resultExample2: String = "9"
 
-    override val resultExample2: String
-        get() = TODO()
-
-    override val resultReal2: String
-        get() = TODO()
+    override val resultReal2: String = "1967"
 
     override val input: String = "/day04/input"
 
