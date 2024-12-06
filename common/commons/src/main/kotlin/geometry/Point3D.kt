@@ -1,4 +1,4 @@
-package com.gilpereda.aoc2024.util.geometry
+package com.gilpereda.adventofcode.commons.geometry
 
 class Point3D private constructor(
     val x: Int,

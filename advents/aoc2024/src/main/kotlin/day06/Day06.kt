@@ -1,9 +1,9 @@
 package com.gilpereda.aoc2024.day06
 
-import com.gilpereda.aoc2024.util.geometry.Orientation
-import com.gilpereda.aoc2024.util.geometry.Point
-import com.gilpereda.aoc2024.util.map.TypedTwoDimensionalMap
-import com.gilpereda.aoc2024.util.map.parseToMap
+import com.gilpereda.adventofcode.commons.geometry.Orientation
+import com.gilpereda.adventofcode.commons.geometry.Point
+import com.gilpereda.adventofcode.commons.map.TypedTwoDimensionalMap
+import com.gilpereda.adventofcode.commons.map.parseToMap
 
 fun firstTask(input: Sequence<String>): String {
     val lines = input.toList()

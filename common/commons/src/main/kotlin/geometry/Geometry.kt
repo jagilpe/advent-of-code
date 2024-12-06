@@ -1,14 +1,14 @@
-package com.gilpereda.aoc2024.util.geometry
+package com.gilpereda.adventofcode.commons.geometry
 
-import com.gilpereda.aoc2024.util.geometry.Direction.BACKWARDS
-import com.gilpereda.aoc2024.util.geometry.Direction.FORWARD
-import com.gilpereda.aoc2024.util.geometry.Direction.LEFT
-import com.gilpereda.aoc2024.util.geometry.Direction.RIGHT
-import com.gilpereda.aoc2024.util.geometry.Orientation.EAST
-import com.gilpereda.aoc2024.util.geometry.Orientation.NORTH
-import com.gilpereda.aoc2024.util.geometry.Orientation.SOUTH
-import com.gilpereda.aoc2024.util.geometry.Orientation.WEST
-import com.gilpereda.aoc2024.util.map.Index
+import com.gilpereda.adventofcode.commons.geometry.Direction.BACKWARDS
+import com.gilpereda.adventofcode.commons.geometry.Direction.FORWARD
+import com.gilpereda.adventofcode.commons.geometry.Direction.LEFT
+import com.gilpereda.adventofcode.commons.geometry.Direction.RIGHT
+import com.gilpereda.adventofcode.commons.geometry.Orientation.EAST
+import com.gilpereda.adventofcode.commons.geometry.Orientation.NORTH
+import com.gilpereda.adventofcode.commons.geometry.Orientation.SOUTH
+import com.gilpereda.adventofcode.commons.geometry.Orientation.WEST
+import com.gilpereda.adventofcode.commons.map.Index
 import kotlin.math.abs
 import kotlin.math.absoluteValue
 import kotlin.math.max

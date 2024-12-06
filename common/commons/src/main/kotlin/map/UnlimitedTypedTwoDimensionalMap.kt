@@ -1,6 +1,6 @@
-package com.gilpereda.aoc2024.util.map
+package com.gilpereda.adventofcode.commons.map
 
-import com.gilpereda.aoc2024.util.geometry.Point
+import com.gilpereda.adventofcode.commons.geometry.Point
 import kotlin.math.absoluteValue
 
 class UnlimitedTypedTwoDimensionalMap<T>(

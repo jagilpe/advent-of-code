@@ -1,6 +1,6 @@
-package com.gilpereda.aoc2024.util.geometry
+package com.gilpereda.adventofcode.commons.geometry
 
-import com.gilpereda.aoc2024.util.map.TypedTwoDimensionalMap
+import com.gilpereda.adventofcode.commons.map.TypedTwoDimensionalMap
 
 enum class Direction {
     FORWARD,

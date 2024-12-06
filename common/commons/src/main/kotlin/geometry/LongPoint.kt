@@ -1,4 +1,4 @@
-package com.gilpereda.aoc2024.util.geometry
+package com.gilpereda.adventofcode.commons.geometry
 
 data class LongPoint3D(
     val x: Long,

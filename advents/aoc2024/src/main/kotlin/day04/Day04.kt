@@ -1,8 +1,8 @@
 package com.gilpereda.aoc2024.day04
 
-import com.gilpereda.aoc2024.util.geometry.Point
-import com.gilpereda.aoc2024.util.map.TypedTwoDimensionalMap
-import com.gilpereda.aoc2024.util.map.parseToMap
+import com.gilpereda.adventofcode.commons.geometry.Point
+import com.gilpereda.adventofcode.commons.map.TypedTwoDimensionalMap
+import com.gilpereda.adventofcode.commons.map.parseToMap
 
 private val XMAS_REGEX = "(XMAS)".toRegex()
 
