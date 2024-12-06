@@ -50,6 +50,22 @@ enum class Orientation {
                 }
         }
 
+    fun turnLeft(): Orientation =
+        when (this) {
+            NORTH -> WEST
+            SOUTH -> EAST
+            EAST -> NORTH
+            WEST -> SOUTH
+        }
+
+    fun turnRight(): Orientation =
+        when (this) {
+            NORTH -> EAST
+            SOUTH -> WEST
+            EAST -> SOUTH
+            WEST -> NORTH
+        }
+
     val opposite: Orientation by lazy {
         when (this) {
             NORTH -> SOUTH
