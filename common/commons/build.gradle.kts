@@ -6,6 +6,7 @@ plugins {
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0")
     testImplementation(kotlin("test"))
 }
 
