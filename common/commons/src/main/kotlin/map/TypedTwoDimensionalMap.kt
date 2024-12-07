@@ -61,17 +61,42 @@ class TypedTwoDimensionalMap<T>(
 
     fun getNullable(point: Point): T? = internalMap.getOrNull(point.y)?.getOrNull(point.x)
 
-    fun diagonalLines(): List<List<T>> {
-        fun Point.next(): Point = Point.from(x + 1, y - 1)
+    fun diagonalLinesUpDown(): List<List<T>> =
+        diagonalLines(
+            start = Point.from(0, 0),
+            next = { Point.from(x + 1, y - 1) },
+            nextStart = {
+                when {
+                    y < height - 1 -> Point.from(0, y + 1)
+                    else -> Point.from(x + 1, y)
+                }
+            },
+        )
 
-        fun Point.nextStart(): Point =
-            when {
-                y < height - 1 -> Point.from(0, y + 1)
-                else -> Point.from(x + 1, y)
-            }
-        return sequence<List<T>> {
-            var currentStart = Point.from(0, 0)
-            val finish = Point.from(width - 1, height - 1)
+    fun diagonalLinesDownUp(): List<List<T>> =
+        diagonalLines(
+            start = Point.from(0, height - 1),
+            next = { Point.from(x + 1, y + 1) },
+            nextStart = {
+                when {
+                    y > 0 -> Point.from(0, y - 1)
+                    else -> Point.from(x + 1, 0)
+                }
+            },
+        )
+
+    private fun diagonalLines(
+        start: Point,
+        next: Point.() -> Point,
+        nextStart: Point.() -> Point,
+    ): List<List<T>> =
+        sequence<List<T>> {
+            var currentStart = start
+            val finish =
+                Point.from(
+                    x = if (start.x == 0) width - 1 else 0,
+                    y = if (start.y == 0) height - 1 else 0,
+                )
             while (currentStart != finish) {
                 val line = mutableListOf<T>()
                 var current = currentStart
@@ -85,33 +110,6 @@ class TypedTwoDimensionalMap<T>(
                 currentStart = currentStart.nextStart()
             }
         }.toList()
-    }
-
-    fun diagonalLines2(): List<List<T>> {
-        fun Point.next(): Point = Point.from(x + 1, y + 1)
-
-        fun Point.nextStart(): Point =
-            when {
-                y > 0 -> Point.from(0, y - 1)
-                else -> Point.from(x + 1, 0)
-            }
-        return sequence<List<T>> {
-            var currentStart = Point.from(0, height - 1)
-            val finish = Point.from(width - 1, 0)
-            while (currentStart != finish) {
-                val line = mutableListOf<T>()
-                var current = currentStart
-                var currentElement = getNullable(current)
-                while (currentElement != null) {
-                    line.add(currentElement)
-                    current = current.next()
-                    currentElement = getNullable(current)
-                }
-                yield(line)
-                currentStart = currentStart.nextStart()
-            }
-        }.toList()
-    }
 
     operator fun set(
         point: Point,

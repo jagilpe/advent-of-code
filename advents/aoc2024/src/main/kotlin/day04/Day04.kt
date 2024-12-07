@@ -25,9 +25,9 @@ private fun findXmasInLine(line: String): Int = countMatches(line) + countMatche
 
 private fun countMatches(line: String): Int = XMAS_REGEX.findAll(line).count()
 
-private fun TypedTwoDimensionalMap<Char>.diagonal(): List<String> = diagonalLines().map { it.joinToString("") }
+private fun TypedTwoDimensionalMap<Char>.diagonal(): List<String> = diagonalLinesUpDown().map { it.joinToString("") }
 
-private fun TypedTwoDimensionalMap<Char>.diagonal2(): List<String> = diagonalLines2().map { it.joinToString("") }
+private fun TypedTwoDimensionalMap<Char>.diagonal2(): List<String> = diagonalLinesDownUp().map { it.joinToString("") }
 
 fun secondTask(input: Sequence<String>): String {
     val map = input.toList().parseToMap { c -> c }
