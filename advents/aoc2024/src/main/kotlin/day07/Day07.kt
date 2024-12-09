@@ -1,5 +1,8 @@
 package com.gilpereda.aoc2024.day07
 
+import com.gilpereda.adventofcode.commons.concurrency.LongSumSequenceCollector
+import com.gilpereda.adventofcode.commons.concurrency.transformAndCollect
+
 fun firstTask(input: Sequence<String>): String = task(input, listOf(Operation.Sum, Operation.Multiply))
 
 fun secondTask(input: Sequence<String>): String = task(input, listOf(Operation.Sum, Operation.Multiply, Operation.Concat))
@@ -8,17 +11,9 @@ private fun task(
     input: Sequence<String>,
     operations: List<Operation>,
 ): String {
-    val start = System.currentTimeMillis()
-    return input
-        .map(::parsed)
-        .filterIndexed { index, test ->
-            test
-                .canMatch(operations)
-                .also {
-                    if (index % 20 == 0) println("processed $index, time: ${System.currentTimeMillis() - start}")
-                }
-        }.sumOf { it.result }
-        .toString()
+    val collector = LongSumSequenceCollector.instance()
+    input.transformAndCollect({ parsed(it).calculate(operations) }, collector)
+    return collector.get().toString()
 }
 
 fun parsed(input: String): Test =
@@ -33,7 +28,7 @@ data class Test(
     val result: Long,
     val operators: List<Long>,
 ) {
-    fun canMatch(operations: List<Operation>): Boolean {
+    private fun canMatch(operations: List<Operation>): Boolean {
         tailrec fun go(acc: List<Partial>): Boolean =
             if (acc.isEmpty()) {
                 false
@@ -60,6 +55,8 @@ data class Test(
             }
         return go(listOf(Partial(operators.first(), operators.drop(1))))
     }
+
+    fun calculate(operations: List<Operation>): Long = if (canMatch(operations)) result else 0
 }
 
 sealed interface Operation {

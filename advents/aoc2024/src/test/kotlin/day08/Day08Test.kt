@@ -2,29 +2,68 @@ package com.gilpereda.aoc2024.day08
 
 import com.gilpereda.aoc2024.BaseTest
 import com.gilpereda.aoc2024.Executable
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
+import java.util.stream.Stream
 
 class Day08Test : BaseTest() {
-    override val example: String
-        get() = TODO()
+    override val example: String =
+        """
+        ............
+        ........0...
+        .....0......
+        .......0....
+        ....0.......
+        ......A.....
+        ............
+        ............
+        ........A...
+        .........A..
+        ............
+        ............
+        """.trimIndent()
 
-    override val example2: String
-        get() = TODO()
+    override val resultExample1: String = "14"
 
-    override val resultExample1: String
-        get() = TODO()
+    override val resultReal1: String = "295"
 
-    override val resultReal1: String
-        get() = TODO()
+    override val resultExample2: String = "34"
 
-    override val resultExample2: String
-        get() = TODO()
-
-    override val resultReal2: String
-        get() = TODO()
+    override val resultReal2: String = ""
 
     override val input: String = "/day08/input"
 
     override val run1: Executable = ::firstTask
 
     override val run2: Executable = ::secondTask
+
+    @ParameterizedTest
+    @MethodSource
+    fun `should calculate the antinodes`(
+        input: String,
+        expected: String,
+    ) {
+        assertThat(firstTask(input.splitToSequence("\n"))).isEqualTo(expected)
+    }
+
+    private fun `should calculate the antinodes`(): Stream<Arguments> =
+        Stream.of(
+            Arguments.of(
+                """
+                ..........
+                ...#......
+                ..........
+                ....a.....
+                ..........
+                .....a....
+                ..........
+                ......#...
+                ..........
+                ..........
+                """.trimIndent(),
+                "2",
+            ),
+        )
 }

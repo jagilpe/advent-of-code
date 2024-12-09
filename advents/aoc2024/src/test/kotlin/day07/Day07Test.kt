@@ -23,7 +23,7 @@ class Day07Test : BaseTest() {
 
     override val resultExample2: String = "11387"
 
-    override val resultReal2: String = ""
+    override val resultReal2: String = "286580387663654"
 
     override val input: String = "/day07/input"
 
