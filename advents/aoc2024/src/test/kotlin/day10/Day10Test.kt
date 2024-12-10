@@ -4,23 +4,25 @@ import com.gilpereda.aoc2024.BaseTest
 import com.gilpereda.aoc2024.Executable
 
 class Day10Test : BaseTest() {
-    override val example: String
-        get() = TODO()
+    override val example: String =
+        """
+        89010123
+        78121874
+        87430965
+        96549874
+        45678903
+        32019012
+        01329801
+        10456732
+        """.trimIndent()
 
-    override val example2: String
-        get() = TODO()
+    override val resultExample1: String = "36"
 
-    override val resultExample1: String
-        get() = TODO()
+    override val resultReal1: String = "593"
 
-    override val resultReal1: String
-        get() = TODO()
+    override val resultExample2: String = "81"
 
-    override val resultExample2: String
-        get() = TODO()
-
-    override val resultReal2: String
-        get() = TODO()
+    override val resultReal2: String = ""
 
     override val input: String = "/day10/input"
 
