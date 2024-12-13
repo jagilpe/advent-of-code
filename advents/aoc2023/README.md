@@ -97,7 +97,7 @@ Unstable Diffusion
 
 ## Day 24
 Blizzard Basin
-- Path finding in a 2D map that changes with every step. Treat it as a 3D map with time as the third dimension. Precalculate the map through time and the apply a path finding algorithm 
+- Path finding in a 2D map that changes with every step. Treat it as a 3D map with time as the third dimension. Precalculate the map through time and then apply a path finding algorithm 
 
 ## Day 25
 Full of Hot Air

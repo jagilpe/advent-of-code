@@ -25,6 +25,19 @@ class TypedTwoDimensionalMap<T>(
             .mapIndexed { y, line -> line.mapIndexed { x, cell -> transform(Point.from(x, y), cell) } }
             .joinToString("\n") { line -> line.joinToString("") }
 
+    fun dumpMultiline(transform: (Point, T) -> String): String =
+        internalMap
+            .flatMapIndexed { y, line ->
+                line
+                    .mapIndexed { x, cell -> transform(Point.from(x, y), cell).split("\n") }
+                    .traversed()
+            }.joinToString("\n") { line -> line.joinToString("") }
+
+    private fun List<List<String>>.traversed(): List<List<String>> =
+        fold(mapOf<Int, List<String>>()) { acc, next ->
+            acc + next.mapIndexed { index, cell -> index to acc.getOrDefault(index, emptyList()) + cell }
+        }.values.toList()
+
     val indices: List<Point> by lazy {
         internalMap.flatMapIndexed { y, line -> List(line.size) { x -> Point.from(x, y) } }
     }
@@ -153,4 +166,13 @@ inline fun <reified T> List<String>.parseToMap(transform: (point: Point, c: Char
     parseToMap { x, y, c -> transform(Point.from(x, y), c) }
 
 inline fun <reified T> List<String>.parseToMap(transform: (x: Index, y: Index, c: Char) -> T): TypedTwoDimensionalMap<T> =
+    TypedTwoDimensionalMap(mapIndexed { y, line -> line.mapIndexed { x, cell -> transform(x, y, cell) }.toMutableList() }.toMutableList())
+
+inline fun <reified T> Sequence<String>.parseToMap(crossinline transform: (c: Char) -> T): TypedTwoDimensionalMap<T> =
+    parseToMap { _, _, c -> transform(c) }
+
+inline fun <reified T> Sequence<String>.parseToMap(crossinline transform: (point: Point, c: Char) -> T): TypedTwoDimensionalMap<T> =
+    parseToMap { x, y, c -> transform(Point.from(x, y), c) }
+
+inline fun <reified T> Sequence<String>.parseToMap(crossinline transform: (x: Index, y: Index, c: Char) -> T): TypedTwoDimensionalMap<T> =
     TypedTwoDimensionalMap(mapIndexed { y, line -> line.mapIndexed { x, cell -> transform(x, y, cell) }.toMutableList() }.toMutableList())
