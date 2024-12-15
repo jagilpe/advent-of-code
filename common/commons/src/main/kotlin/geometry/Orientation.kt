@@ -9,14 +9,36 @@ enum class Direction {
     LEFT,
 }
 
-enum class Orientation {
-    NORTH,
-    SOUTH,
-    EAST,
-    WEST,
+enum class Orientation(
+    val s: String,
+) {
+    NORTH("^"),
+    SOUTH("v"),
+    EAST(">"),
+    WEST("<"),
     ;
 
+    override fun toString(): String = s
+
     fun isOpposite(orientation: Orientation): Boolean = orientation == opposite
+
+    val isHorizontal: Boolean by lazy {
+        when (this) {
+            NORTH -> false
+            SOUTH -> false
+            EAST -> true
+            WEST -> true
+        }
+    }
+
+    val isVertical: Boolean by lazy {
+        when (this) {
+            NORTH -> true
+            SOUTH -> true
+            EAST -> false
+            WEST -> false
+        }
+    }
 
     fun turnedDirectionTo(other: Orientation): Direction =
         when (this) {

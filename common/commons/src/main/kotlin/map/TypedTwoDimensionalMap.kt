@@ -15,10 +15,27 @@ class TypedTwoDimensionalMap<T>(
         internalMap.first().size
     }
 
+    fun areAdjacentPoints(
+        one: Point,
+        other: Point,
+    ): Boolean =
+        one.x in maxOf(other.x - 1, 0)..minOf(other.x + 1, width - 1) &&
+            one.y in maxOf(other.y - 1, 0)..minOf(other.y + 1, height - 1)
+
     fun toUnlimited(): UnlimitedTypedTwoDimensionalMap<T> = UnlimitedTypedTwoDimensionalMap(this)
 
-    fun dump(transform: (T) -> String = { "$it" }): String =
-        internalMap.joinToString(separator = "\n") { line -> line.joinToString("") { transform(it) } }
+    fun dump(transform: (T) -> String = { "$it" }): String = dump { _, t -> transform(t) }
+
+    fun dumpWithIndex(transform: (Point, T) -> String): String =
+        internalMap
+            .transformWithIndexes(transform)
+            .joinToString(separator = "\n") { line -> line.joinToString("") }
+
+    fun dumpWithIndex(transform: (T) -> String = { "$it" }): String = dumpWithIndex { _, t -> transform(t) }
+
+    private fun List<List<T>>.transformWithIndexes(transform: (Point, T) -> String): List<List<String>> =
+        listOf(List(width) { y -> "${y % 10}" }) +
+            mapIndexed { y, line -> line.mapIndexed { x, t -> transform(Point.from(x, y), t) } + "${y % 10}" }
 
     fun dump(transform: (Point, T) -> String): String =
         internalMap
@@ -155,6 +172,16 @@ class TypedTwoDimensionalMap<T>(
         )
 
     fun count(predicate: (T) -> Boolean): Int = values().count(predicate)
+
+    override fun equals(other: Any?): Boolean = other is TypedTwoDimensionalMap<*> && internalMap == other.internalMap
+
+    companion object {
+        fun <T> from(
+            value: T,
+            width: Int,
+            height: Int,
+        ): TypedTwoDimensionalMap<T> = TypedTwoDimensionalMap(List(height) { List(width) { value }.toMutableList() }.toMutableList())
+    }
 }
 
 inline fun <reified T> String.parseToMap(transform: (c: Char) -> T): TypedTwoDimensionalMap<T> = split("\n").parseToMap(transform)
