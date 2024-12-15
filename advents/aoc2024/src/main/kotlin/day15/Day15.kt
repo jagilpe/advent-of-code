@@ -3,7 +3,6 @@ package com.gilpereda.aoc2024.day15
 import com.gilpereda.adventofcode.commons.geometry.Orientation
 import com.gilpereda.adventofcode.commons.geometry.Point
 import com.gilpereda.adventofcode.commons.map.TypedTwoDimensionalMap
-import com.gilpereda.adventofcode.commons.map.parseToMap
 
 fun firstTask(input: Sequence<String>): String = resolve(input.toList().joinToString("\n"))
 
@@ -20,7 +19,7 @@ fun secondTask(input: Sequence<String>): String =
 
 private fun resolve(input: String): String {
     val (mapString, commandsString) = input.split("\n\n")
-    val initialGame = renderGame(mapString)
+    val initialGame = parseGame(mapString)
     val commands =
         commandsString
             .split("\n")
@@ -34,179 +33,171 @@ private fun resolve(input: String): String {
                 }
             }
 
-    println(initialGame)
-    val game =
-        commands.foldIndexed(initialGame) { index, game, orientation ->
-            println("$index $orientation")
-            game.move(orientation)
-        }
-    println(game)
-    return game.result().toString()
+    return commands.fold(initialGame) { game, orientation -> game.move(orientation) }.result().toString()
 }
 
-fun renderGame(string: String): Game {
-    lateinit var robot: Point
-    val map =
-        string.split("\n").parseToMap { point, c ->
-            if (c == '@') {
-                robot = point
+fun parseGame(string: String): Game {
+    val stringList = string.split("\n")
+    val width = stringList.first().length
+    val height = stringList.size
+    return Game(width = width, height = height)
+        .apply {
+            stringList.forEachIndexed { y, line ->
+                line.forEachIndexed { x, c ->
+                    when (c) {
+                        '@' -> {
+                            robot = Point.from(x, y)
+                        }
+                        '#' -> addWall(x, y)
+                        'O' -> addSingleCellBox(x, y)
+                        '[' -> addDoubleCellBox(x, y)
+                    }
+                }
             }
-            Cell.from(c)
         }
-    return Game(map, robot)
-}
-
-enum class Cell(
-    val s: String,
-) {
-    Wall("#"),
-    Box("O"),
-    BoxLeft("["),
-    BoxRight("]"),
-    Empty("."),
-    ;
-
-    override fun toString(): String = s
-
-    companion object {
-        fun from(c: Char): Cell =
-            when (c) {
-                '#' -> Wall
-                'O' -> Box
-                '[' -> BoxLeft
-                ']' -> BoxRight
-                else -> Empty
-            }
-    }
 }
 
 class Game(
-    private val map: TypedTwoDimensionalMap<Cell>,
-    initialRobot: Point,
+    val height: Int,
+    val width: Int,
 ) {
-    private var robot = initialRobot
+    private val map: TypedTwoDimensionalMap<Byte> by lazy {
+        TypedTwoDimensionalMap.from(0.toByte(), width, height)
+    }
+    lateinit var robot: Point
+    private val boxes: MutableSet<Box> = mutableSetOf()
+    private val walls: MutableSet<Point> = mutableSetOf()
 
-    override fun toString(): String = map.dumpWithIndex { point, cell -> if (point == robot) "@" else cell.toString() }
+    override fun toString(): String =
+        map.dumpWithIndex { point, _ ->
+            when {
+                point == robot -> "@"
+                point.isWall() -> "#"
+                else -> boxes.firstNotNullOfOrNull { it[point] } ?: "."
+            }
+        }
 
-    override fun equals(other: Any?): Boolean = other is Game && robot == other.robot && map == other.map
+    private fun Point.isWall() = this in walls
+
+    fun addWall(
+        x: Int,
+        y: Int,
+    ) {
+        walls.add(Point.from(x, y))
+    }
+
+    fun addSingleCellBox(
+        x: Int,
+        y: Int,
+    ) {
+        boxes.add(SCBox(Point.from(x, y)))
+    }
+
+    fun addDoubleCellBox(
+        x: Int,
+        y: Int,
+    ) {
+        boxes.add(DCBox(Point.from(x, y)))
+    }
 
     fun move(orientation: Orientation): Game {
         val destination = robot.move(orientation)
-        val moved = mutableSetOf<Point>()
-        robot =
-            if (canMoveTo(destination, orientation)) {
-                moved.add(destination)
-                val destinationCell = map[destination]
-                if (orientation.isVertical) {
-                    when (destinationCell) {
-                        Cell.BoxLeft -> {
-                            val rightBoxDestination = destination.move(Orientation.EAST)
-                            moved.add(rightBoxDestination)
-                            move(moved, rightBoxDestination, orientation)
-                            map[rightBoxDestination] = Cell.Empty
-                        }
-                        Cell.BoxRight -> {
-                            val leftBoxDestination = destination.move(Orientation.WEST)
-                            moved.add(leftBoxDestination)
-                            move(moved, leftBoxDestination, orientation)
-                            map[leftBoxDestination] = Cell.Empty
-                        }
-                        else -> {}
-                    }
-                }
-                move(moved, destination, orientation)
-                map[destination] = Cell.Empty
-                destination
-            } else {
-                robot
-            }
+        if (robot.canMove(orientation)) {
+            robot = destination
+            getBox(destination)?.move(orientation)
+        }
         return this
     }
 
-    private fun canMoveTo(
-        destination: Point,
-        orientation: Orientation,
-    ): Boolean =
-        when (map[destination]) {
-            Cell.Wall -> false
-            Cell.Box -> canMoveTo(destination.move(orientation), orientation)
-            Cell.BoxLeft ->
-                when (orientation) {
-                    Orientation.EAST, Orientation.WEST -> canMoveTo(destination.move(orientation), orientation)
-                    Orientation.SOUTH, Orientation.NORTH ->
-                        canMoveTo(destination.move(orientation), orientation) &&
-                            canMoveTo(destination.move(Orientation.EAST).move(orientation), orientation)
-                }
-
-            Cell.BoxRight ->
-                when (orientation) {
-                    Orientation.EAST, Orientation.WEST -> canMoveTo(destination.move(orientation), orientation)
-                    Orientation.SOUTH, Orientation.NORTH ->
-                        canMoveTo(destination.move(orientation), orientation) &&
-                            canMoveTo(destination.move(Orientation.WEST).move(orientation), orientation)
-                }
-
-            Cell.Empty -> true
-        }
-
-    private fun move(
-        moved: MutableSet<Point>,
-        point: Point,
-        orientation: Orientation,
-    ) {
-        val destination = point.move(orientation)
-        val cell = map[point]
-        println("moving from $point to $destination")
-        if (destination!in moved) {
-            moved.add(destination)
-            when (map[destination]) {
-                Cell.Wall -> throw IllegalArgumentException("Not allowed to move to a wall")
-                Cell.Empty -> {
-                    map[destination] = cell
-                }
-                Cell.Box -> {
-                    move(moved, destination, orientation)
-                    map[destination] = cell
-                }
-
-                Cell.BoxLeft -> {
-                    if (orientation.isVertical) {
-                        val rightBox = point.move(Orientation.EAST)
-                        if (rightBox !in moved) {
-                            moved.add(rightBox)
-                            map[rightBox] = Cell.Empty
-                        }
-                        val rightBoxDestination = destination.move(Orientation.EAST)
-                        moved.add(rightBoxDestination)
-                        move(moved, rightBoxDestination, orientation)
-                    }
-                    move(moved, destination, orientation)
-                    map[destination] = cell
-                }
-
-                Cell.BoxRight -> {
-                    if (orientation.isVertical) {
-                        val leftBox = point.move(Orientation.WEST)
-                        if (leftBox !in moved) {
-                            moved.add(leftBox)
-                            map[leftBox] = Cell.Empty
-                        }
-                        val leftBoxDestination = destination.move(Orientation.WEST)
-                        moved.add(leftBoxDestination)
-                        move(moved, leftBoxDestination, orientation)
-                    }
-                    move(moved, destination, orientation)
-                    map[destination] = cell
-                }
-            }
+    private fun Point.canMove(orientation: Orientation): Boolean {
+        val destination = move(orientation)
+        return when {
+            destination.isWall() -> false
+            else -> getBox(destination)?.canMove(orientation) ?: true
         }
     }
 
-    fun result(): Long =
-        map.valuesIndexed().sumOf { (point, cell) ->
-            when (cell) {
-                Cell.Box, Cell.BoxLeft -> 100L * point.y + point.x
-                else -> 0
-            }
+    fun result(): Int = boxes.sumOf { (point) -> point.y * 100 + point.x }
+
+    private fun getBox(point: Point): Box? = boxes.firstOrNull { point in it }
+
+    sealed class Box(
+        val position: Point,
+    ) {
+        abstract operator fun contains(point: Point): Boolean
+
+        operator fun component1(): Point = position
+
+        abstract operator fun get(point: Point): String?
+
+        abstract fun canMove(orientation: Orientation): Boolean
+
+        abstract fun move(orientation: Orientation)
+
+        override fun toString(): String = "${this::class.simpleName}($position)"
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Box
+            return position == other.position
         }
+
+        override fun hashCode(): Int {
+            var result = this::class.simpleName.hashCode()
+            result = 31 * result + position.hashCode()
+            return result
+        }
+    }
+
+    inner class SCBox(
+        position: Point,
+    ) : Box(position) {
+        override fun contains(point: Point): Boolean = position == point
+
+        override fun get(point: Point): String? = if (point == position) "O" else null
+
+        override fun canMove(orientation: Orientation): Boolean = position.canMove(orientation)
+
+        override fun move(orientation: Orientation) {
+            val destination = position.move(orientation)
+            getBox(destination)?.move(orientation)
+            boxes.remove(this)
+            boxes.add(SCBox(destination))
+        }
+    }
+
+    inner class DCBox(
+        position: Point,
+    ) : Box(position) {
+        private val positionRight: Point = position.move(Orientation.EAST)
+
+        override fun contains(point: Point): Boolean = position == point || positionRight == point
+
+        override fun get(point: Point): String? =
+            when (point) {
+                position -> "["
+                positionRight -> "]"
+                else -> null
+            }
+
+        override fun canMove(orientation: Orientation): Boolean =
+            when (orientation) {
+                Orientation.NORTH, Orientation.SOUTH -> position.canMove(orientation) && positionRight.canMove(orientation)
+                Orientation.EAST -> positionRight.canMove(orientation)
+                Orientation.WEST -> position.canMove(orientation)
+            }
+
+        override fun move(orientation: Orientation) {
+            val destination = position.move(orientation)
+            val destinationRight = positionRight.move(orientation)
+            setOfNotNull(
+                getBox(destination),
+                getBox(destinationRight),
+            ).filter { it != this }.forEach { it.move(orientation) }
+            boxes.remove(this)
+            boxes.add(DCBox(destination))
+        }
+    }
 }
