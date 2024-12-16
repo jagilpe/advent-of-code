@@ -13,6 +13,8 @@ import kotlin.math.abs
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 class Point private constructor(
     val x: Int,
@@ -32,6 +34,8 @@ class Point private constructor(
     ): Boolean = x == 0 || x == width - 1 || y == 0 || y == height - 1
 
     fun distanceTo(other: Point): Int = abs(x - other.x) + abs(y - other.y)
+
+    fun euclideanDistanceTo(other: Point): Double = sqrt((other.x - x).toDouble().pow(2.0) + (other.y - y).toDouble().pow(2.0))
 
     fun move(
         orientation: Orientation,

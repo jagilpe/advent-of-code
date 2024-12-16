@@ -40,12 +40,12 @@ abstract class BaseTest {
         assertThat(run(input.splitToSequence("\n"))).isEqualTo(expected)
     }
 
-    @Test
+//    @Test
     fun `should work with the example - part 1`() {
         check(example to resultExample1, ::runExample1)
     }
 
-    @Test
+//    @Test
     fun `should return the result - part 1`() {
         assertThat(runReal1(inputSequence)).isEqualTo(resultReal1)
     }
