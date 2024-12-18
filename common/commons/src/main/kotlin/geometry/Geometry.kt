@@ -91,6 +91,10 @@ class Point private constructor(
         return result
     }
 
+    operator fun component1(): Int = x
+
+    operator fun component2(): Int = y
+
     companion object {
         fun from(
             x: Index,
