@@ -3,6 +3,9 @@ package com.gilpereda.aoc2024.day07
 import com.gilpereda.adventofcode.commons.concurrency.LongSumSequenceCollector
 import com.gilpereda.adventofcode.commons.concurrency.transformAndCollect
 
+/**
+ * 350 is not
+ */
 fun firstTask(input: Sequence<String>): String = task(input, listOf(Operation.Sum, Operation.Multiply))
 
 fun secondTask(input: Sequence<String>): String = task(input, listOf(Operation.Sum, Operation.Multiply, Operation.Concat))
@@ -12,7 +15,7 @@ private fun task(
     operations: List<Operation>,
 ): String {
     val collector = LongSumSequenceCollector.instance()
-    input.transformAndCollect({ parsed(it).calculate(operations) }, collector)
+    input.transformAndCollect(transform = { parsed(it).calculate(operations) }, collector = collector)
     return collector.get().toString()
 }
 

@@ -2,22 +2,20 @@ package com.gilpereda.adventofcode.commons.concurrency
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.flatMapMerge
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.LongAccumulator
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 fun <A, B, C> Sequence<A>.transformAndCollect(
+    concurrency: Int = DEFAULT_CONCURRENCY,
     transform: (A) -> B,
     collector: SequenceCollector<B, C>,
 ) = runBlocking {
     asFlow()
-        .flatMapMerge { flow { emit(transform(it)) } }
-        .flowOn(Dispatchers.IO)
+        .flatMapMerge(concurrency) { flow { emit(transform(it)) } }
+        .flowOn(Dispatchers.IO.limitedParallelism(concurrency))
         .collect(collector.asFlowCollector)
 }
 

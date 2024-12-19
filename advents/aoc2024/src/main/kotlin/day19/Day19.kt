@@ -14,18 +14,22 @@ fun firstTask(input: Sequence<String>): String {
             .sortedByDescending { it.pattern.length }
 
     val counter = AtomicInteger(0)
+    val inFlight = AtomicInteger(0)
     val collector = PatternsCollector()
     val designs =
         inputList
             .drop(2)
             .filter { it.canBeBuiltWithPatterns(patterns) }
+    val pending = AtomicInteger(designs.size)
     println("Possible designs: ${designs.size}")
     designs
         .asSequence()
         .transformAndCollect(
+            concurrency = 32,
             transform = {
-                println("processed: ${counter.getAndIncrement()}, valid: ${collector.count()}")
+                println("inFlight: ${inFlight.incrementAndGet()}, valid: ${collector.count()}")
                 Design(it).isDesignPossible(patterns)
+                    .also { println("processed: ${counter.getAndIncrement()}, valid: ${collector.count()}, inFlight: ${inFlight.decrementAndGet()}, pending: ${pending.decrementAndGet()}") }
             },
             collector = collector,
         )
