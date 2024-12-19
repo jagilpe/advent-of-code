@@ -1,111 +1,120 @@
 package com.gilpereda.aoc2024.day19
 
-import com.gilpereda.adventofcode.commons.concurrency.SequenceCollector
-import com.gilpereda.adventofcode.commons.concurrency.transformAndCollect
-import java.util.concurrent.atomic.AtomicInteger
-
+/**
+ * 363 is not the answer
+ * 366 is not the answer (forward and backwards)
+ * 350 is not
+ * 305 is not right
+ * 283 is not right
+ * 369 is not right
+ */
 fun firstTask(input: Sequence<String>): String {
     val inputList = input.toList()
     val patterns =
         inputList
             .first()
             .split(", ")
-            .map { Pattern(it) }
-            .sortedByDescending { it.pattern.length }
+            .map { it }
+            .sortedByDescending { it.length }
 
-    val counter = AtomicInteger(0)
-    val inFlight = AtomicInteger(0)
-    val collector = PatternsCollector()
     val designs =
         inputList
             .drop(2)
-            .filter { it.canBeBuiltWithPatterns(patterns) }
-    val pending = AtomicInteger(designs.size)
-    println("Possible designs: ${designs.size}")
-    designs
-        .asSequence()
-        .transformAndCollect(
-            concurrency = 32,
-            transform = {
-                println("inFlight: ${inFlight.incrementAndGet()}, valid: ${collector.count()}")
-                Design(it).isDesignPossible(patterns)
-                    .also { println("processed: ${counter.getAndIncrement()}, valid: ${collector.count()}, inFlight: ${inFlight.decrementAndGet()}, pending: ${pending.decrementAndGet()}") }
-            },
-            collector = collector,
-        )
 
-    return collector.count().toString()
+    println("Possible designs: ${designs.size}")
+    val result = Game(designs, patterns).solve()
+
+    return result.count { it.value != null }.toString()
 }
 
-class PatternsCollector : SequenceCollector<Boolean, Int> {
-    private val counter = AtomicInteger(0)
+class Game(
+    private val designs: List<String>,
+    private val patterns: List<String>,
+) {
+    private var sortedPatterns = patterns
+    private val patternToDecomposition =
+        patterns
+            .associateWith { pattern -> listOf(pattern) }
+            .toMutableMap()
 
-    fun count(): Int = counter.get()
+    fun solve(): Map<String, List<String>?> =
+        designs.associateWith { design ->
+            val decomposition = decomposition(design)
+            if (decomposition.finished) {
+                decomposition.acc
+            } else if (decomposition.failed) {
+                null
+            } else {
+                findAlternative(decomposition.current, decomposition.rest)
+            }
+        }
 
-    override fun emit(value: Boolean) {
-        if (value) counter.incrementAndGet()
+    private fun decomposition(design: String): Decomposition {
+        tailrec fun go(decomposition: Decomposition): Decomposition =
+            if (decomposition.finished) {
+                decomposition
+            } else {
+                val next = findMatching(decomposition.rest)
+                if (next == null) {
+                    decomposition
+                } else {
+                    val (pattern, list) = next
+                    val newAcc = decomposition.acc + list
+                    val newRest = decomposition.rest.removePrefix(pattern)
+                    val newCurrent = decomposition.current + pattern
+                    sortedPatterns = (sortedPatterns + pattern).sortedByDescending { it.length }
+                    patternToDecomposition[newCurrent] = newAcc
+                    go(Decomposition(newRest, newCurrent, newAcc))
+                }
+            }
+        return go(Decomposition(design, "", emptyList()))
     }
+
+    private fun findAlternative(
+        initial: String,
+        final: String,
+    ): List<String>? {
+        var newInitial = initial
+        var newFinal = final
+        do {
+            newFinal = newInitial.last() + newFinal
+            newInitial = newInitial.dropLast(1)
+
+            val finalDecomposition = decomposition(newFinal)
+            if (finalDecomposition.finished) {
+                val initialDecomposition = decomposition(newInitial)
+                if (initialDecomposition.finished) {
+                    return initialDecomposition.acc + finalDecomposition.acc
+                }
+            }
+        } while (newInitial.isNotBlank())
+        return null
+    }
+
+    private fun findMatching(design: String): Pair<String, List<String>>? =
+        sortedPatterns
+            .firstOrNull { design.startsWith(it) }
+            ?.let { p -> patternToDecomposition[p]?.let { d -> p to d } }
+}
+
+data class Decomposition(
+    val rest: String,
+    val current: String,
+    val acc: List<String>,
+) {
+    val finished: Boolean = rest.isBlank()
+    val failed: Boolean = current.isBlank()
 }
 
 fun secondTask(input: Sequence<String>): String = TODO()
 
-data class Pattern(
-    val pattern: String,
-)
-
-data class Design(
-    val design: String,
-) {
-    fun isDesignPossible(patterns: List<Pattern>): Boolean {
-        tailrec fun go(open: List<Combination>): Boolean =
-            if (open.isEmpty()) {
-                false
-            } else {
-                val next = open.minBy { it.score }
-                if (next.finished) {
-                    true
-                } else {
-                    go(open + next.newCombinations() - next)
-                }
-            }
-
-        return go(listOf(Combination(listOf(design), emptyList(), patterns.areContainedIn(design))))
-    }
-
-    private fun List<Pattern>.areContainedIn(design: String): List<Pattern> = filter { it.pattern in design }
-}
-
-data class Combination(
-    val rest: List<String>,
-    val patterns: List<Pattern>,
-    val restPatterns: List<Pattern>,
-) {
-    val score = rest.sumOf { it.length }
-
-    private val canSucceed: Boolean
-        get() = rest.all { it.canBeBuiltWithPatterns(restPatterns) }
-
-    val finished: Boolean = rest.isEmpty() || rest.all { it.isBlank() }
-
-    fun newCombinations(): List<Combination> =
-        restPatterns
-            .map { pattern ->
-                val newRest = rest.flatMap { design -> design.split(pattern.pattern) }.filter { it.isNotBlank() }
-                Combination(
-                    newRest,
-                    patterns + pattern,
-                    (restPatterns - pattern).filter { newPattern -> newRest.any { newPattern.pattern in it } },
-                )
-            }.filter { it.canSucceed }
-}
-
-private fun String.canBeBuiltWithPatterns(patterns: List<Pattern>): Boolean =
+private fun String.canBeBuiltWithPatterns(patterns: List<String>): Boolean =
     patterns
         .fold(this) { acc, next ->
-            acc.replace(next.pattern, "")
+            acc.replace(next, "")
         }.isBlank() ||
         patterns
-            .sortedBy { it.pattern.length }
+            .sortedBy { it.length }
             .fold(this) { acc, next ->
-                acc.replace(next.pattern, "")
+                acc.replace(next, "")
             }.isBlank()
