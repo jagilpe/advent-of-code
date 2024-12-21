@@ -4,35 +4,65 @@ import com.gilpereda.adventofcode.commons.geometry.Orientation
 import com.gilpereda.adventofcode.commons.geometry.Point
 
 fun firstTask(input: Sequence<String>): String {
-    val cache = Cache()
+    val robot = List(1) { it }.fold(Robot()) { robot, _ -> Robot(robot) }
     return input
-        .map { Code(it, cache) }
-        .sumOf { it.result(3) }
+        .map { Code(it, robot) }
+        .sumOf { it.result() }
         .toString()
 }
 
-fun secondTask(input: Sequence<String>): String = TODO()
+fun secondTask(input: Sequence<String>): String {
+    val robot = List(23) { it }.fold(Robot()) { robot, _ -> Robot(robot) }
+    var counter = 0
+    return input
+        .map { Code(it, robot) }
+        .sumOf {
+            println("Counter: ${counter++}")
+            it.result()
+        }.toString()
+}
 
-class Code(
-    private val code: String,
-    private val cache: Cache,
-) {
-    private val robotLevelActivated = mutableSetOf<Int>()
+object NumericPad {
     private val numericPad =
         mapOf(
             '7' to Point.from(0, 0),
             '8' to Point.from(1, 0),
             '9' to Point.from(2, 0),
-            '6' to Point.from(0, 1),
+            '4' to Point.from(0, 1),
             '5' to Point.from(1, 1),
-            '4' to Point.from(2, 1),
-            '3' to Point.from(0, 2),
+            '6' to Point.from(2, 1),
+            '1' to Point.from(0, 2),
             '2' to Point.from(1, 2),
-            '1' to Point.from(2, 2),
+            '3' to Point.from(2, 2),
             '0' to Point.from(1, 3),
             'A' to Point.from(2, 3),
         )
 
+    private val invertedPad =
+        mapOf(
+            Point.from(0, 0) to '7',
+            Point.from(1, 0) to '8',
+            Point.from(2, 0) to '9',
+            Point.from(0, 1) to '4',
+            Point.from(1, 1) to '5',
+            Point.from(2, 1) to '6',
+            Point.from(0, 2) to '1',
+            Point.from(1, 2) to '2',
+            Point.from(2, 2) to '3',
+            Point.from(1, 3) to '0',
+            Point.from(2, 3) to 'A',
+        )
+
+    fun pointFor(char: Char): Point = numericPad.getValue(char)
+
+    fun charForPoint(point: Point): Char = invertedPad.getValue(point)
+
+    private val numericKeyPadPositions = numericPad.values.toSet()
+
+    fun isValid(point: Point): Boolean = point in numericKeyPadPositions
+}
+
+object DirectionalKeyPad {
     private val directionalKeyPad =
         mapOf(
             Button.from(Orientation.NORTH) to Point.from(1, 0),
@@ -42,84 +72,51 @@ class Code(
             Button.from(Orientation.EAST) to Point.from(2, 1),
         )
 
-    fun result(levels: Int): Long {
-        val complexity = complexity(levels)
-        val number = code.drop(1).dropLast(1).toLong()
+    private val invertedPad =
+        mapOf(
+            Point.from(1, 0) to Button.from(Orientation.NORTH),
+            Point.from(2, 0) to ActivateButton,
+            Point.from(0, 1) to Button.from(Orientation.WEST),
+            Point.from(1, 1) to Button.from(Orientation.SOUTH),
+            Point.from(2, 1) to Button.from(Orientation.EAST),
+        )
+
+    fun pointFor(button: Button): Point = directionalKeyPad.getValue(button)
+
+    fun buttonForPoint(point: Point): Button = invertedPad.getValue(point)
+
+    private val directionalKeyPadPositions = directionalKeyPad.values.toSet()
+
+    fun isValid(point: Point): Boolean = point in directionalKeyPadPositions
+}
+
+class Code(
+    private val code: String,
+    private val robot: Robot,
+) {
+    fun result(): Long {
+        val complexity = complexity()
+        val number = code.dropLast(1).toLong()
+
         return number * complexity
     }
 
-    private fun complexity(levels: Int): Long {
+    private fun complexity(): Long {
         val numericPadMoves =
             findPathsInNumericPad(code)
-                .filter { dump(it) == "<A^A>^^AvvvA" }
+//                .filter { dump(it) == "<A^A>^^AvvvA" }
 //                .filter { dump(it) == "<A^A^>^AvvvA" }
 //                .filter { dump(it) == "<A^A^^>AvvvA" }
 
         var counter = 0
-        println("paths: ${numericPadMoves.size}")
-        val paths =
-            numericPadMoves.flatMap {
-                println("path: ${counter++}")
-                deepFindPathsInDirectionalPad(it, levels)
-            }
 
-        val expected = "v<<A>>^A<A>AvA<^AA>A<vAAA>^A"
-        val pathStrings = paths.map { dump(it) }.sorted()
-        val found = pathStrings.firstOrNull { it.startsWith(expected.substring(0..12)) }
+        val firstLevelCache = RealCache()
 
-        return paths.minByOrNull { it.size }?.size?.toLong() ?: 0L
-    }
+        val paths = numericPadMoves.flatMap { robot.resolve(it.toActivatedSteps(), firstLevelCache) }
 
-    private fun deepFindPathsInDirectionalPad(
-        list: List<Button>,
-        level: Int,
-    ): Set<List<Button>> {
-        tailrec fun go(
-            open: List<List<Button>>,
-            acc: Set<List<Button>>,
-        ): Set<List<Button>> =
-            if (open.isEmpty()) {
-                acc
-            } else {
-                println("open: ${open.size}")
-                val (from, to) = open.first()
-                if (from == to) {
-                    go(open.drop(1), acc)
-                } else {
-                    val cacheEntry = Cache.Entry(from, to, level)
-                    val cached = cache[cacheEntry]
-                    val nextMoves =
-                        if (cached != null) {
-                            println("cache hit")
-                            cached
-                        } else {
-                            if (level == 0) {
-                                findPathInDirectionalPad(from, to)
-                            } else {
-                                val nextLevel = level - 1
-                                val cacheResult = nextLevel in robotLevelActivated
-                                findPathInDirectionalPad(from, to)
-                                    .flatMap {
-                                        deepFindPathsInDirectionalPad(listOf(from, to), nextLevel)
-                                    }.also {
-                                        if (cacheResult) {
-                                            cache[cacheEntry] = it
-                                        }
-                                    }
-                            }
-                        }
-                    val newAcc = acc.flatMap { path -> nextMoves.map { path + it } }.toSet()
-                    go(open.drop(1), newAcc)
-                }
-            }
-        val windowedList =
-            if (level in robotLevelActivated) {
-                list.windowed(2)
-            } else {
-                robotLevelActivated.add(level)
-                listOf(ActivateButton, *list.toTypedArray()).windowed(2)
-            }
-        return go(windowedList, setOf(emptyList()))
+        val outputs = numericPadMoves.map { path -> revertNumericPad(path) }
+
+        return paths.minOf { it.size }.toLong() ?: 0L
     }
 
     private fun findPathsInNumericPad(code: String): List<List<Button>> {
@@ -140,60 +137,128 @@ class Code(
 
     private fun findPathInNumericPad(pair: List<Char>): List<List<Button>> =
         pair.let { (from, to) ->
-            val fromPoint = numericPad.getValue(from)
-            val toPoint = numericPad.getValue(to)
-            fromPoint.movementsTo(toPoint).map { path -> path.map { Button.from(it) } + ActivateButton }
+            val fromPoint = NumericPad.pointFor(from)
+            val toPoint = NumericPad.pointFor(to)
+            fromPoint.movementsTo(toPoint, NumericPad::isValid).map { path -> path.map { Button.from(it) } + ActivateButton }
         }
 
-    private fun findPathsInDirectionalPad(list: List<Button>): List<List<Button>> {
+    private fun dump(instructions: List<Button>): String = instructions.joinToString("")
+}
+
+fun revertNumericPad(steps: List<Button>): String =
+    steps
+        .fold('A' to "") { (current, acc), next ->
+            when (next) {
+                is DirectionalButton ->
+                    NumericPad.charForPoint(NumericPad.pointFor(current).move(next.orientation)) to acc
+                is ActivateButton -> current to acc + current
+            }
+        }.second
+
+fun revertDirectionPad(steps: List<Button>): List<Button> =
+    steps
+        .fold(ActivateButton as Button to (listOf<Button>())) { (current, acc), next ->
+            when (next) {
+                is DirectionalButton ->
+                    DirectionalKeyPad.buttonForPoint(DirectionalKeyPad.pointFor(current).move(next.orientation)) to acc
+                is ActivateButton -> current to acc + current
+            }
+        }.second
+
+class Robot(
+    private val delegate: Robot? = null,
+) {
+    private val localCache: Cache = RealCache()
+
+    fun resolve(
+        instructions: List<Step>,
+        parentCache: Cache = NoopCache,
+    ): List<List<Button>> {
+        val findPathsInDirectionalPad = findPathsInDirectionalPad(instructions, parentCache)
+        return if (delegate != null) {
+            findPathsInDirectionalPad.flatMap {
+                delegate
+                    .resolve(it.toActivatedSteps(), localCache)
+            }
+        } else {
+            findPathsInDirectionalPad
+        }
+    }
+
+    private fun findPathsInDirectionalPad(
+        steps: List<Step>,
+        parentCache: Cache,
+    ): List<List<Button>> {
         tailrec fun go(
-            open: List<List<Button>>,
+            open: List<Step>,
             acc: List<List<Button>>,
         ): List<List<Button>> =
             if (open.isEmpty()) {
                 acc
             } else {
-                val (from, to) = open.first()
-                val newMoves = findPathInDirectionalPad(from, to).ifEmpty { listOf(emptyList()) }
+                val step = open.first()
+                val newMoves =
+                    parentCache[step]
+                        ?: findPathInDirectionalPad(step)
+                            .ifEmpty { listOf(emptyList()) }
+                            .also { parentCache[step] = it }
                 val newAcc = acc.flatMap { path -> newMoves.map { path + it } }
                 go(open.drop(1), newAcc)
             }
-        return go(list.toList().windowed(2), listOf(emptyList()))
+        return go(steps, listOf(emptyList()))
     }
 
-    private fun findPathInDirectionalPad(
-        from: Button,
-        to: Button,
-    ): Set<List<Button>> {
-        val fromPoint = directionalKeyPad.getValue(from)
-        val fromTo = directionalKeyPad.getValue(to)
+    private fun findPathInDirectionalPad(step: Step): List<List<Button>> {
+        val fromPoint = DirectionalKeyPad.pointFor(step.from)
+        val fromTo = DirectionalKeyPad.pointFor(step.to)
         return (
             fromPoint
-                .movementsTo(fromTo)
+                .movementsTo(fromTo, DirectionalKeyPad::isValid)
                 .ifEmpty { listOf(emptyList()) }
-        ).map { path -> path.map { Button.from(it) } + ActivateButton }.toSet()
+        ).map { path -> path.map { Button.from(it) } + ActivateButton }
     }
-
-    private fun dump(instructions: List<Button>): String = instructions.joinToString("")
 }
 
-class Cache {
-    private val cache = mutableMapOf<Entry, List<List<Button>>>()
+private fun List<Button>.toActivatedSteps(): List<Step> = listOf(ActivateButton, *toTypedArray()).windowed(2).map(::Step)
 
-    operator fun get(entry: Entry): List<List<Button>>? = cache[entry]
+data class Step(
+    val from: Button,
+    val to: Button,
+) {
+    constructor(list: List<Button>) : this(list[0], list[1])
+}
+
+interface Cache {
+    operator fun get(step: Step): List<List<Button>>?
 
     operator fun set(
-        entry: Entry,
+        step: Step,
+        value: List<List<Button>>,
+    )
+}
+
+object NoopCache : Cache {
+    override fun get(step: Step): List<List<Button>>? = null
+
+    override fun set(
+        step: Step,
         value: List<List<Button>>,
     ) {
-        cache[entry] = value
+        // Do nothing
     }
+}
 
-    data class Entry(
-        val from: Button,
-        val to: Button,
-        val level: Int,
-    )
+class RealCache : Cache {
+    private val cache = mutableMapOf<Step, List<List<Button>>>()
+
+    override operator fun get(step: Step): List<List<Button>>? = cache[step]
+
+    override operator fun set(
+        step: Step,
+        value: List<List<Button>>,
+    ) {
+        cache[step] = value
+    }
 }
 
 sealed interface Button {
@@ -201,6 +266,15 @@ sealed interface Button {
         private val buttons = mutableMapOf<Orientation, Button>()
 
         fun from(orientation: Orientation): Button = buttons.computeIfAbsent(orientation) { DirectionalButton(it) }
+
+        fun from(char: Char): Button =
+            when (char) {
+                '<' -> from(Orientation.WEST)
+                '>' -> from(Orientation.EAST)
+                '^' -> from(Orientation.NORTH)
+                'v' -> from(Orientation.SOUTH)
+                else -> ActivateButton
+            }
     }
 }
 

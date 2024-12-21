@@ -62,10 +62,14 @@ class Point private constructor(
         return go(listOf(listOf(this)), emptyList())
     }
 
-    fun movementsTo(destination: Point): List<List<Orientation>> {
+    fun movementsTo(
+        destination: Point,
+        valid: (Point) -> Boolean = { true },
+    ): List<List<Orientation>> {
         tailrec fun go(
             open: List<List<Pair<Point, Orientation>>>,
             acc: List<List<Orientation>>,
+            valid: (Point) -> Boolean,
         ): List<List<Orientation>> =
             if (open.isEmpty()) {
                 acc
@@ -76,17 +80,18 @@ class Point private constructor(
                 val nextSteps =
                     current.first
                         .neighbours
+                        .filter { valid(it.value) }
                         .map { it.value }
                         .filter { it.distanceTo(destination) < currentPoint.distanceTo(destination) }
                 if (destination in nextSteps) {
                     val orientations = currentPath.drop(1).map { it.second } + currentPoint.movementTo(destination)
-                    go(open.drop(1), acc.append(orientations))
+                    go(open.drop(1), acc.append(orientations), valid)
                 } else {
                     val newOpen = open.drop(1) + nextSteps.map { currentPath + (it to currentPoint.movementTo(it)) }
-                    go(newOpen, acc)
+                    go(newOpen, acc, valid)
                 }
             }
-        return go(listOf(listOf(this to NORTH)), emptyList())
+        return go(listOf(listOf(this to NORTH)), emptyList(), valid)
     }
 
     private fun movementTo(destination: Point): Orientation =
