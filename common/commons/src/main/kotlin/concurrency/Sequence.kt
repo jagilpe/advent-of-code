@@ -3,7 +3,12 @@ package com.gilpereda.adventofcode.commons.concurrency
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.DEFAULT_CONCURRENCY
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.flatMapMerge
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.LongAccumulator
 
@@ -56,5 +61,22 @@ class LongSumSequenceCollector private constructor(
 
     companion object {
         fun instance(notifyEach: Int = 100): LongSumSequenceCollector = LongSumSequenceCollector(ProgressPrinter(notifyEach))
+    }
+}
+
+class CountSequenceCollector private constructor(
+    private val progressPrinter: ProgressPrinter = ProgressPrinter(),
+) : SequenceCollector<Boolean, Long> {
+    private val accumulator = LongAccumulator(Long::plus, 0)
+
+    override fun emit(value: Boolean) {
+        if (value) accumulator.accumulate(1L)
+        progressPrinter.emit()
+    }
+
+    fun get(): Long = accumulator.get()
+
+    companion object {
+        fun instance(notifyEach: Int = 100): CountSequenceCollector = CountSequenceCollector(ProgressPrinter(notifyEach))
     }
 }

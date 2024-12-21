@@ -20,11 +20,11 @@ class Day19Test : BaseTest() {
 
     override val resultExample1: String = "6"
 
-    override val resultReal1: String = ""
+    override val resultReal1: String = "371"
 
-    override val resultExample2: String = ""
+    override val resultExample2: String = "16"
 
-    override val resultReal2: String = ""
+    override val resultReal2: String = "650354687260341"
 
     override val input: String = "/day19/input"
 

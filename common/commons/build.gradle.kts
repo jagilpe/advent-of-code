@@ -8,6 +8,8 @@ plugins {
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0")
     testImplementation(kotlin("test"))
+    testImplementation(libs.bundles.aoc.test)
+    testImplementation("org.junit.jupiter:junit-jupiter-params")
 }
 
 tasks.test {

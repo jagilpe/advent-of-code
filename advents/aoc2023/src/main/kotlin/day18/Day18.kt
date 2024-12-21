@@ -62,7 +62,7 @@ class Game(
     fun solve(): Long {
         val start = Point.from(0, 0)
         val points = commands.fold(listOf(start)) { acc, command ->
-            acc + acc.last.move(command.orientation, command.length)
+            acc + acc.last().move(command.orientation, command.length)
         }
         return Polygon(points).external().area.toLong()
     }

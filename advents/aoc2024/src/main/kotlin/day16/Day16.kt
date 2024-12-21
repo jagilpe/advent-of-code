@@ -103,12 +103,7 @@ class Maze(
         val open = mutableSetOf(listOf(startReindeer))
         val scores = mutableMapOf(startReindeer to listOf(startReindeer).result())
         val paths = mutableSetOf<List<Reindeer>>()
-        var iterations = 0
         while (open.isNotEmpty()) {
-            iterations++
-            if (iterations % 100_000 == 0) {
-                println("open: ${open.size}")
-            }
             val current = open.first()
             open.remove(current)
             if (current.closed()) {

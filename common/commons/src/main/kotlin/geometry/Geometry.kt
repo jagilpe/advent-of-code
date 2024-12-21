@@ -37,6 +37,67 @@ class Point private constructor(
 
     fun euclideanDistanceTo(other: Point): Double = sqrt((other.x - x).toDouble().pow(2.0) + (other.y - y).toDouble().pow(2.0))
 
+    fun pathsTo(destination: Point): List<List<Point>> {
+        tailrec fun go(
+            open: List<List<Point>>,
+            acc: List<List<Point>>,
+        ): List<List<Point>> =
+            if (open.isEmpty()) {
+                acc.filter { it.isNotEmpty() }
+            } else {
+                val currentPath = open.first()
+                val currentPoint = currentPath.last()
+                val nextSteps =
+                    currentPoint
+                        .neighbours
+                        .map { it.value }
+                        .filter { it.distanceTo(destination) < currentPoint.distanceTo(destination) }
+                if (destination in nextSteps) {
+                    go(open.drop(1), acc.append(currentPath - this))
+                } else {
+                    val newOpen = open.drop(1) + nextSteps.map { currentPath + it }
+                    go(newOpen, acc)
+                }
+            }
+        return go(listOf(listOf(this)), emptyList())
+    }
+
+    fun movementsTo(destination: Point): List<List<Orientation>> {
+        tailrec fun go(
+            open: List<List<Pair<Point, Orientation>>>,
+            acc: List<List<Orientation>>,
+        ): List<List<Orientation>> =
+            if (open.isEmpty()) {
+                acc
+            } else {
+                val currentPath = open.first()
+                val current = currentPath.last()
+                val currentPoint = current.first
+                val nextSteps =
+                    current.first
+                        .neighbours
+                        .map { it.value }
+                        .filter { it.distanceTo(destination) < currentPoint.distanceTo(destination) }
+                if (destination in nextSteps) {
+                    val orientations = currentPath.drop(1).map { it.second } + currentPoint.movementTo(destination)
+                    go(open.drop(1), acc.append(orientations))
+                } else {
+                    val newOpen = open.drop(1) + nextSteps.map { currentPath + (it to currentPoint.movementTo(it)) }
+                    go(newOpen, acc)
+                }
+            }
+        return go(listOf(listOf(this to NORTH)), emptyList())
+    }
+
+    private fun movementTo(destination: Point): Orientation =
+        when {
+            x == destination.x && y == destination.y - 1 -> SOUTH
+            x == destination.x && y == destination.y + 1 -> NORTH
+            x == destination.x - 1 && y == destination.y -> EAST
+            x == destination.x + 1 && y == destination.y -> WEST
+            else -> throw IllegalArgumentException("The points must be adjacent")
+        }
+
     fun move(
         orientation: Orientation,
         steps: Int = 1,
@@ -202,4 +263,10 @@ data class Line(
 
     private val minY = min(from.y, to.y)
     private val maxY = max(from.y, to.y)
+}
+
+private fun <A> List<List<A>>.append(element: List<A>): List<List<A>> {
+    val result = ArrayList<List<A>>(this)
+    result.add(element)
+    return result
 }

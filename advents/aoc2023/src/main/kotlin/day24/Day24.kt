@@ -17,18 +17,22 @@ fun firstTask(
     max: Long,
 ): String {
     val hailstones = input.mapIndexed { index, line -> line.parsed(index) }.toList()
-    tailrec fun go(next: Hailstone, rest: List<Hailstone>, acc: List<Intersection> = emptyList()): List<Intersection> =
+
+    tailrec fun go(
+        next: Hailstone,
+        rest: List<Hailstone>,
+        acc: List<Intersection> = emptyList(),
+    ): List<Intersection> =
         if (rest.isEmpty()) {
             acc
         } else {
             val newIntersections = rest.map { next.intersectionWith(it) }
-            go(rest.first, rest.drop(1), acc + newIntersections)
+            go(rest.first(), rest.drop(1), acc + newIntersections)
         }
 
-    val intersections = go(hailstones.first, hailstones.drop(1))
+    val intersections = go(hailstones.first(), hailstones.drop(1))
     val (intersecting, parallel) = intersections.partition { it.intersection != null }
     val (matching, notMatching) = intersecting.partition { it.matches(min, max) }
-
 
     return matching.count().toString()
 }
@@ -70,16 +74,19 @@ data class Intersection(
     val t: Double? = null,
     val u: Double? = null,
 ) {
-    fun matches(min: Long, max: Long,): Boolean =
-        intersection != null && inFuture && intersection in min .. max
+    fun matches(
+        min: Long,
+        max: Long,
+    ): Boolean = intersection != null && inFuture && intersection in min..max
 
     val inFuture: Boolean = t != null && u != null && t >= 0 && u >= 0
 
     override fun toString(): String =
-        if (intersection != null)
+        if (intersection != null) {
             "one = $one, other = $other, x = ${intersection.x}, y = ${intersection.y}, t = $t, u = $u, in future = $inFuture"
-        else
+        } else {
             "one = $one, other = $other, lines are parallel"
+        }
 }
 
 operator fun LongRange.contains(intersection: LongPoint3D): Boolean {
@@ -104,7 +111,7 @@ data class Hailstone(
         } else {
             val t = ((py1 - py0) * vx1 + (px0 - px1) * vy1) / denominator0
             val u = ((py0 - py1) * vx0 + (px1 - px0) * vy0) / denominator1
-            Intersection(this, other, LongPoint3D((px1 + vx1 * u).toLong(), (py1 + vy1 * u).toLong(), 0), t,  u)
+            Intersection(this, other, LongPoint3D((px1 + vx1 * u).toLong(), (py1 + vy1 * u).toLong(), 0), t, u)
         }
     }
 
@@ -120,7 +127,10 @@ data class Hailstone(
     override fun toString(): String = name
 }
 
-data class ProjectedStone(val position: LongPoint, val velocity: LongPoint) {
+data class ProjectedStone(
+    val position: LongPoint,
+    val velocity: LongPoint,
+) {
     val a: BigInteger = velocity.y.toBigInteger()
     val b: BigInteger = -velocity.x.toBigInteger()
     val c: BigInteger = (velocity.y.toBigInteger() * position.x.toBigInteger() - velocity.x.toBigInteger() * position.y.toBigInteger())
@@ -128,12 +138,13 @@ data class ProjectedStone(val position: LongPoint, val velocity: LongPoint) {
     /**
      * Adds the specified velocity to this projected stone
      */
-    fun addingVelocity(delta: LongPoint): ProjectedStone {
-        return copy(velocity = velocity + delta)
-    }
+    fun addingVelocity(delta: LongPoint): ProjectedStone = copy(velocity = velocity + delta)
 }
 
-private fun findRockPositionAndVelocity(stones: List<Hailstone>, axis: Axis): Pair<LongPoint, LongPoint> {
+private fun findRockPositionAndVelocity(
+    stones: List<Hailstone>,
+    axis: Axis,
+): Pair<LongPoint, LongPoint> {
     val maxValue = 400L
     val minResultCount = 5
     (-maxValue..maxValue).forEach { vx ->
@@ -158,26 +169,40 @@ private fun findRockPositionAndVelocity(stones: List<Hailstone>, axis: Axis): Pa
     throw IllegalStateException("Could not find solutions")
 }
 
-private fun processPairs(stones: List<Hailstone>, axis: Axis, deltaSpeed: LongPoint = LongPoint(0, 0), process: (LongPoint?) -> Boolean) {
+private fun processPairs(
+    stones: List<Hailstone>,
+    axis: Axis,
+    deltaSpeed: LongPoint = LongPoint(0, 0),
+    process: (LongPoint?) -> Boolean,
+) {
     stones.indices.forEach { i ->
         ((i + 1) until stones.size).forEach { j ->
             val firstStone = stones[i].projected(axis).addingVelocity(deltaSpeed)
             val secondStone = stones[j].projected(axis).addingVelocity(deltaSpeed)
-            val intersection = solve(firstStone, secondStone)?.takeIf { p ->
-                listOf(firstStone, secondStone).all { (p.y - it.position.y).sign == it.velocity.y.sign }
-            }
+            val intersection =
+                solve(firstStone, secondStone)?.takeIf { p ->
+                    listOf(firstStone, secondStone).all { (p.y - it.position.y).sign == it.velocity.y.sign }
+                }
             if (!process(intersection)) return
         }
     }
 }
 
-fun solve(first: ProjectedStone, second: ProjectedStone): LongPoint? {
-    return solve(first.a, first.b, first.c, second.a, second.b, second.c)
-}
+fun solve(
+    first: ProjectedStone,
+    second: ProjectedStone,
+): LongPoint? = solve(first.a, first.b, first.c, second.a, second.b, second.c)
 
 // Solve two linear equations for x and y
 // Equations of the form: ax + by = c
-fun solve(a1: BigInteger, b1: BigInteger, c1: BigInteger, a2: BigInteger, b2: BigInteger, c2: BigInteger): LongPoint? {
+fun solve(
+    a1: BigInteger,
+    b1: BigInteger,
+    c1: BigInteger,
+    a2: BigInteger,
+    b2: BigInteger,
+    c2: BigInteger,
+): LongPoint? {
     val d = b2 * a1 - b1 * a2
     if (d == BigInteger.ZERO) return null
     val x = (b2 * c1 - b1 * c2) / d
