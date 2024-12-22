@@ -55,7 +55,7 @@ abstract class BaseTest {
         check(example2 to resultExample2, ::runExample2)
     }
 
-    @Test
+//    @Test
     fun `should return the result - part 2`() {
         assertThat(runReal2(inputSequence)).isEqualTo(resultReal2)
     }

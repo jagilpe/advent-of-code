@@ -3,23 +3,15 @@ package com.gilpereda.aoc2024.day21
 import com.gilpereda.adventofcode.commons.geometry.Orientation
 import com.gilpereda.adventofcode.commons.geometry.Point
 
-fun firstTask(input: Sequence<String>): String {
-    val robot = List(1) { it }.fold(Robot()) { robot, _ -> Robot(robot) }
-    return input
-        .map { Code(it, robot) }
-        .sumOf { it.result() }
-        .toString()
-}
+fun firstTask(input: Sequence<String>): String = input.solve(1).toString()
 
-fun secondTask(input: Sequence<String>): String {
-    val robot = List(23) { it }.fold(Robot()) { robot, _ -> Robot(robot) }
-    var counter = 0
-    return input
-        .map { Code(it, robot) }
-        .sumOf {
-            println("Counter: ${counter++}")
-            it.result()
-        }.toString()
+fun secondTask(input: Sequence<String>): String = input.solve(19).toString()
+
+private fun Sequence<String>.solve(levels: Int): Long {
+    val cache = RealCache()
+    val robot = List(levels) { it }.fold(Robot(cache = cache)) { robot, _ -> Robot(cache, robot) }
+    return map { Code(it, robot) }
+        .sumOf { it.result() }
 }
 
 object NumericPad {
@@ -108,15 +100,9 @@ class Code(
 //                .filter { dump(it) == "<A^A^>^AvvvA" }
 //                .filter { dump(it) == "<A^A^^>AvvvA" }
 
-        var counter = 0
+        val paths = numericPadMoves.flatMap { robot.resolve(it.toActivatedSteps()) }
 
-        val firstLevelCache = RealCache()
-
-        val paths = numericPadMoves.flatMap { robot.resolve(it.toActivatedSteps(), firstLevelCache) }
-
-        val outputs = numericPadMoves.map { path -> revertNumericPad(path) }
-
-        return paths.minOf { it.size }.toLong() ?: 0L
+        return paths.minOf { it.size }.toLong()
     }
 
     private fun findPathsInNumericPad(code: String): List<List<Button>> {
@@ -166,29 +152,24 @@ fun revertDirectionPad(steps: List<Button>): List<Button> =
         }.second
 
 class Robot(
+    private val cache: Cache,
     private val delegate: Robot? = null,
 ) {
-    private val localCache: Cache = RealCache()
+    private val level: Int by lazy { if (delegate != null) delegate.level + 1 else 0 }
 
-    fun resolve(
-        instructions: List<Step>,
-        parentCache: Cache = NoopCache,
-    ): List<List<Button>> {
-        val findPathsInDirectionalPad = findPathsInDirectionalPad(instructions, parentCache)
+    fun resolve(instructions: List<Step>): List<List<Button>> {
+        val findPathsInDirectionalPad = findPathsInDirectionalPad(instructions)
         return if (delegate != null) {
             findPathsInDirectionalPad.flatMap {
                 delegate
-                    .resolve(it.toActivatedSteps(), localCache)
+                    .resolve(it.toActivatedSteps())
             }
         } else {
             findPathsInDirectionalPad
         }
     }
 
-    private fun findPathsInDirectionalPad(
-        steps: List<Step>,
-        parentCache: Cache,
-    ): List<List<Button>> {
+    private fun findPathsInDirectionalPad(steps: List<Step>): List<List<Button>> {
         tailrec fun go(
             open: List<Step>,
             acc: List<List<Button>>,
@@ -198,10 +179,10 @@ class Robot(
             } else {
                 val step = open.first()
                 val newMoves =
-                    parentCache[step]
+                    cache[step, level]
                         ?: findPathInDirectionalPad(step)
                             .ifEmpty { listOf(emptyList()) }
-                            .also { parentCache[step] = it }
+                            .also { cache[step, level] = it }
                 val newAcc = acc.flatMap { path -> newMoves.map { path + it } }
                 go(open.drop(1), newAcc)
             }
@@ -229,19 +210,27 @@ data class Step(
 }
 
 interface Cache {
-    operator fun get(step: Step): List<List<Button>>?
+    operator fun get(
+        step: Step,
+        level: Int,
+    ): List<List<Button>>?
 
     operator fun set(
         step: Step,
+        level: Int,
         value: List<List<Button>>,
     )
 }
 
 object NoopCache : Cache {
-    override fun get(step: Step): List<List<Button>>? = null
+    override fun get(
+        step: Step,
+        level: Int,
+    ): List<List<Button>>? = null
 
     override fun set(
         step: Step,
+        level: Int,
         value: List<List<Button>>,
     ) {
         // Do nothing
@@ -249,15 +238,19 @@ object NoopCache : Cache {
 }
 
 class RealCache : Cache {
-    private val cache = mutableMapOf<Step, List<List<Button>>>()
+    private val cache = mutableMapOf<Step, MutableMap<Int, List<List<Button>>>>()
 
-    override operator fun get(step: Step): List<List<Button>>? = cache[step]
+    override operator fun get(
+        step: Step,
+        level: Int,
+    ): List<List<Button>>? = cache[step]?.get(level)
 
     override operator fun set(
         step: Step,
+        level: Int,
         value: List<List<Button>>,
     ) {
-        cache[step] = value
+        cache.computeIfAbsent(step) { mutableMapOf() }[level] = value
     }
 }
 

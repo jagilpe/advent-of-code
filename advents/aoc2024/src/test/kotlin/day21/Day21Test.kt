@@ -45,7 +45,8 @@ class Day21Test : BaseTest() {
         code: String,
         expected: Long,
     ) {
-        val robot = Robot(Robot())
+        val cache = NoopCache
+        val robot = Robot(cache, Robot(cache))
         assertThat(Code(code, robot).result()).isEqualTo(expected)
     }
 
