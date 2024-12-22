@@ -31,6 +31,8 @@ class Game(
 ) {
     private lateinit var start: Point
     private lateinit var target: Point
+
+    private val cheatsCache = CheatsCache()
     private val map =
         input.parseToMap { point, cell ->
             when (cell) {
@@ -39,15 +41,15 @@ class Game(
                     start = point
                     Cell.Track
                 }
+
                 'E' -> {
                     target = point
                     Cell.Track
                 }
+
                 else -> Cell.Track
             }
         }
-
-    private val cheatsCache = ConcurrentHashMap<Pair<Int, Int>, Set<Int>>()
 
     fun solve(maxCheat: Int): Long {
         val originalBestTimeTrack = TrackFinder().solve()
@@ -88,9 +90,47 @@ class Game(
         path: List<Point>,
         maxCheat: Int,
     ): List<Int> {
-//        tailrec fun go(open: )
-        TODO()
+        tailrec fun go(
+            open: List<ShortCut>,
+            acc: List<Int>,
+        ): List<Int> =
+            if (open.isEmpty()) {
+                acc
+            } else {
+                TODO()
+//                val currentPath = open.first()
+//                val (currentIndex, length, active, shortcutUsed) = currentPath
+//                if (currentIndex == path.lastIndex) {
+//                    go(open.drop(1), acc + length + 1)
+//                } else {
+//                    if (!active && shortcutUsed) {
+//                        go(open.drop(1), acc + length + path.size - currentIndex)
+//                    } else {
+//                        val newOpen =
+// //                            cheatsCache
+// //                                .getCheatsFor(currentIndex)
+// //                                .flatMap { (to, lengths) ->
+// //                                    if (active) {
+// //                                        lengths
+// //                                            .
+// //                                            .map { length -> ShortCut(path.subList(to, path.size - 1), currentLength + length, true) }
+// //                                    } else {
+// //                                        TODO()
+// //                                    }
+// //                                }
+//                        TODO()
+//                    }
+            }
+
+        return go(listOf(ShortCut(0)), emptyList())
     }
+
+    data class ShortCut(
+        val current: Int,
+        val length: Int = 0,
+        val active: Boolean = false,
+        val shortcutUsed: Boolean = false,
+    )
 
     private fun findCheats(
         path: List<Point>,
@@ -236,6 +276,25 @@ class Game(
 
         operator fun get(point: Point): Double = scores[point] ?: Double.MAX_VALUE
     }
+}
+
+class CheatsCache {
+    private val cheatsCache = ConcurrentHashMap<Pair<Int, Int>, Set<Int>>()
+
+    operator fun get(pair: Pair<Int, Int>): Set<Int>? = cheatsCache[pair]
+
+    operator fun set(
+        pair: Pair<Int, Int>,
+        value: Set<Int>,
+    ) {
+        cheatsCache[pair] = value
+    }
+
+    fun getCheatsFor(int: Int): Set<Pair<Int, Set<Int>>> =
+        cheatsCache.entries
+            .filter { it.key.first == int }
+            .map { (points, length) -> points.second to length }
+            .toSet()
 }
 
 enum class Cell(
