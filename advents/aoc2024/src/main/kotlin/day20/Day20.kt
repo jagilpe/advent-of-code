@@ -1,8 +1,6 @@
 package com.gilpereda.aoc2024.day20
 
 import com.gilpereda.adventofcode.commons.concurrency.SequenceCollector
-import com.gilpereda.adventofcode.commons.concurrency.logProgress
-import com.gilpereda.adventofcode.commons.concurrency.transformAndCollect
 import com.gilpereda.adventofcode.commons.geometry.Point
 import com.gilpereda.adventofcode.commons.map.parseToMap
 import java.util.concurrent.atomic.AtomicLong
@@ -20,10 +18,6 @@ fun firstTask(input: Sequence<String>): String {
     return game.solve1(2, savings).toString()
 }
 
-/**
- * 1011302 too low
- * 1142882 too high
- */
 fun secondTask(input: Sequence<String>): String {
     val inputList = input.toList()
     val savings = inputList.first().split(",")[1].toInt()
@@ -91,21 +85,22 @@ class Game(
     ): Long {
         val path = TrackFinder().solve()
 
-        val collector = ShortcutCollector(savings)
-        (2..maxCheat)
-            .asSequence()
-            .flatMap { distance ->
-                println("distance $distance")
-                path.indices.flatMap { start ->
-                    ((start + 1)..<path.size).map { Triple(start, it, distance) }
-                }
-            }.transformAndCollect(
-                transform = { (start, end, distance) -> findBestCheatBetween(path, start, end, distance) },
-                collector = collector.logProgress(1_000_000),
-            )
-
-        return collector.get()
+        return (2..maxCheat)
+            .sumOf { findBestShortcutsForDistance(path, it, savings) }
     }
+
+    private fun findBestShortcutsForDistance(
+        path: List<Point>,
+        distance: Int,
+        savings: Int,
+    ): Long =
+        path.indices
+            .flatMap { start ->
+                ((start + 1)..<path.size).map { Triple(start, it, distance) }
+            }.mapNotNull { (start, end, distance) ->
+                findBestCheatBetween(path, start, end, distance)
+            }.count { it.win >= savings }
+            .toLong()
 
     private fun findBestCheatBetween(
         path: List<Point>,
@@ -297,6 +292,16 @@ class ShortcutCollector(
     }
 
     fun get() = counter.get()
+}
+
+class ResultCollector : SequenceCollector<Long> {
+    private val collector = AtomicLong(0)
+
+    override fun emit(value: Long) {
+        collector.addAndGet(value)
+    }
+
+    fun get() = collector.get()
 }
 
 class ShortcutCache {
