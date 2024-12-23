@@ -20,6 +20,10 @@ fun firstTask(input: Sequence<String>): String {
     return game.solve1(2, savings).toString()
 }
 
+/**
+ * 1011302 too low
+ * 1142882 too high
+ */
 fun secondTask(input: Sequence<String>): String {
     val inputList = input.toList()
     val savings = inputList.first().split(",")[1].toInt()
@@ -72,8 +76,8 @@ class Game(
                     val endIndex = path.indexOf(endPoint)
                     cheatsToPoint.map {
                         Shortcut(
-                            start = startIndex,
-                            end = endIndex,
+                            start = startPoint,
+                            end = endPoint,
                             length = it.size,
                             win = endIndex - startIndex - it.size,
                         )
@@ -88,39 +92,51 @@ class Game(
         val path = TrackFinder().solve()
 
         val collector = ShortcutCollector(savings)
-        (1..<path.size)
+        (2..maxCheat)
             .asSequence()
-            .flatMap { window -> (0..<path.size - window).asSequence().map { start -> start to (start + window) } }
-            .filter { path[it.first].distanceTo(path[it.second]) <= maxCheat }
-            .transformAndCollect(
-                transform = { findBestCheatBetween(path, it.first, it.second) },
-                collector = collector.logProgress(100_000),
+            .flatMap { distance ->
+                println("distance $distance")
+                path.indices.flatMap { start ->
+                    ((start + 1)..<path.size).map { Triple(start, it, distance) }
+                }
+            }.transformAndCollect(
+                transform = { (start, end, distance) -> findBestCheatBetween(path, start, end, distance) },
+                collector = collector.logProgress(1_000_000),
             )
+
         return collector.get()
     }
 
     private fun findBestCheatBetween(
         path: List<Point>,
-        from: Int,
-        to: Int,
+        start: Int,
+        end: Int,
+        distance: Int,
     ): Shortcut? {
-        val startPoint = path[from]
-        val endPoint = path[to]
+        val startPoint = path[start]
+        val endPoint = path[end]
+        if (startPoint.distanceTo(endPoint) != distance) {
+            return null
+        }
         val open = mutableSetOf(startPoint)
         val cameFrom = mutableMapOf<Point, Point>()
         val gScore = GScores(startPoint to 0.0)
 
-        val fScore = FScores(startPoint to 0.0)
+        val fScore = FScores(startPoint to 0.0, endPoint)
         while (open.isNotEmpty()) {
             val current = open.minByOrNull { fScore[it] }!!
             if (current == endPoint) {
-                val newPath = reconstructPath(cameFrom, current).reversed()
-                return Shortcut(
-                    start = from,
-                    end = to,
-                    length = newPath.size,
-                    win = to - from - newPath.size,
-                )
+                val newPath = reconstructPath(cameFrom, current)
+                val from = path.indexOf(startPoint)
+                val to = path.indexOf(endPoint)
+                val shortcut =
+                    Shortcut(
+                        start = startPoint,
+                        end = endPoint,
+                        length = newPath.size,
+                        win = to - from - newPath.size,
+                    )
+                return shortcut
             }
 
             open.remove(current)
@@ -177,39 +193,6 @@ class Game(
         return go(listOf(listOf(start)), mutableMapOf())
     }
 
-    private fun findCheatsBetween(
-        source: Point,
-        destination: Point,
-    ): List<Point>? {
-        val open = mutableSetOf(source)
-        val cameFrom = mutableMapOf<Point, Point>()
-        val gScore = GScores(source to 0.0)
-
-        val fScore = FScores(source to 0.0)
-        while (open.isNotEmpty()) {
-            val current = open.minByOrNull { fScore[it] }!!
-            if (current == destination) {
-                return reconstructPath(cameFrom, current).reversed() + target
-            }
-
-            open.remove(current)
-            current.neighbours
-                .map { it.value }
-                .forEach { neighbour ->
-                    val tentativeGScore = gScore[current] + 1.0
-                    if (tentativeGScore < gScore[neighbour]) {
-                        cameFrom[neighbour] = current
-                        gScore[neighbour] = tentativeGScore
-                        fScore.add(neighbour, tentativeGScore)
-                        if (neighbour !in open) {
-                            open.add(neighbour)
-                        }
-                    }
-                }
-        }
-        return null
-    }
-
     private fun Point.isValid(): Boolean = x in 1..(map.width - 2) && y in 1..(map.height - 2)
 
     inner class TrackFinder {
@@ -218,7 +201,7 @@ class Game(
             val cameFrom = mutableMapOf<Point, Point>()
             val gScore = GScores(start to 0.0)
 
-            val fScore = FScores(start to 0.0)
+            val fScore = FScores(start to 0.0, target)
             while (open.isNotEmpty()) {
                 val current = open.minByOrNull { fScore[it] }!!
                 if (current == target) {
@@ -278,6 +261,7 @@ class Game(
 
     inner class FScores(
         initial: Pair<Point, Double>,
+        private val target: Point,
     ) {
         private fun h(position: Point): Double = target.euclideanDistanceTo(position)
 
@@ -295,22 +279,34 @@ class Game(
 }
 
 data class Shortcut(
-    val start: Int,
-    val end: Int,
+    val start: Point,
+    val end: Point,
     val win: Int,
     val length: Int,
 )
 
 class ShortcutCollector(
-    private val minWin: Int,
+    private val savings: Int,
 ) : SequenceCollector<Shortcut?> {
-    private val counter: AtomicLong = AtomicLong(0)
+    private val counter = AtomicLong(0)
 
     override fun emit(value: Shortcut?) {
-        if (value != null && value.win >= minWin) counter.incrementAndGet()
+        if (value != null && value.win >= savings) {
+            counter.incrementAndGet()
+        }
     }
 
-    fun get(): Long = counter.get()
+    fun get() = counter.get()
+}
+
+class ShortcutCache {
+    private val shortcuts = mutableMapOf<Pair<Point, Point>, Shortcut>()
+
+    fun add(value: Shortcut) {
+//        shortcuts[Pair(value.start, value.end)] = value
+    }
+
+    operator fun get(pair: Pair<Point, Point>): Shortcut? = shortcuts[pair]
 }
 
 enum class Cell(
