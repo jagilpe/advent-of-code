@@ -1,8 +1,11 @@
 package com.gilpereda.aoc2024.day20
 
+import com.gilpereda.adventofcode.commons.concurrency.SequenceCollector
+import com.gilpereda.adventofcode.commons.concurrency.logProgress
+import com.gilpereda.adventofcode.commons.concurrency.transformAndCollect
 import com.gilpereda.adventofcode.commons.geometry.Point
 import com.gilpereda.adventofcode.commons.map.parseToMap
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 fun firstTask(input: Sequence<String>): String {
     val inputList = input.toList()
@@ -14,8 +17,7 @@ fun firstTask(input: Sequence<String>): String {
             .toInt()
     val game = Game(inputList.drop(1))
 
-    val cheatsCache = CheatsCache()
-    return game.solve(cheatsCache, 2, savings).toString()
+    return game.solve1(2, savings).toString()
 }
 
 fun secondTask(input: Sequence<String>): String {
@@ -23,8 +25,7 @@ fun secondTask(input: Sequence<String>): String {
     val savings = inputList.first().split(",")[1].toInt()
     val game = Game(inputList.drop(1))
 
-    val cheatsCache = CheatsCache()
-    return game.solve2(cheatsCache, 20, savings).toString()
+    return game.solve2(20, savings).toString()
 }
 
 class Game(
@@ -49,65 +50,118 @@ class Game(
             }
         }
 
-    fun solve(
-        cheatsCache: CheatsCache,
+    fun solve1(
         maxCheat: Int,
         savings: Int,
     ): Int {
-        val originalBestTimeTrack = TrackFinder().solve()
-        warmupCache(cheatsCache, originalBestTimeTrack, maxCheat)
-        return findBetterPaths(originalBestTimeTrack, maxCheat, cheatsCache)
+        val path = TrackFinder().solve()
+        return findAllShortcutsWithMaxCheat(path, maxCheat)
             .count { it.win >= savings }
     }
 
-    fun solve2(
-        cheatsCache: CheatsCache,
-        maxCheat: Int,
-        savings: Int,
-    ): Int {
-        val originalBestTimeTrack = TrackFinder().solve()
-        warmupCache2(cheatsCache, originalBestTimeTrack, maxCheat)
-        val shortCuts =
-            findBetterPaths(originalBestTimeTrack, maxCheat, cheatsCache)
-                .filter { it.win >= savings }
-                .groupBy { Pair(it.start, it.end) }
-
-        val shortCutsByWin =
-            shortCuts
-                .mapValues { (_, cheats) ->
-                    cheats.maxBy { it.win }
-                }.entries
-                .groupBy { it.value.win }
-                .entries
-                .sortedByDescending { it.key }
-
-        return shortCuts
-            .mapValues { (_, cheats) -> cheats.maxOf { it.win } }
-            .size
-    }
-
-    private fun dumpCheats(cheats: List<List<Point>>): String {
-        val flattenCheats = cheats.flatten()
-        return map.dumpWithIndex { point, c ->
-            when (point) {
-                in flattenCheats -> "x"
-                else -> c.toString()
-            }
-        }
-    }
-
-    private fun warmupCache(
-        cheatsCache: CheatsCache,
+    private fun findAllShortcutsWithMaxCheat(
         path: List<Point>,
-        maxLength: Int,
-    ) {
+        maxCheat: Int,
+    ): Sequence<Shortcut> =
         path
             .asSequence()
-            .map { it to findCheatsFrom(it, maxLength) }
-            .forEach { (startPoint, cheats) ->
+            .map { it to findCheatsFrom(it, maxCheat) }
+            .flatMap { (startPoint, cheatsFromStart) ->
                 val startIndex = path.indexOf(startPoint)
-                cheatsCache[startIndex] = cheats.mapKeys { (p, _) -> path.indexOf(p) }
+                cheatsFromStart.flatMap { (endPoint, cheatsToPoint) ->
+                    val endIndex = path.indexOf(endPoint)
+                    cheatsToPoint.map {
+                        Shortcut(
+                            start = startIndex,
+                            end = endIndex,
+                            length = it.size,
+                            win = endIndex - startIndex - it.size,
+                        )
+                    }
+                }
             }
+
+    fun solve2(
+        maxCheat: Int,
+        savings: Int,
+    ): Long {
+        val path = TrackFinder().solve()
+
+        val collector = ShortcutCollector(savings)
+        (1..<path.size)
+            .asSequence()
+            .flatMap { window -> (0..<path.size - window).asSequence().map { start -> start to (start + window) } }
+            .transformAndCollect(
+                transform = { findBestCheatBetween(path, it.first, it.second, maxCheat) },
+                collector = collector.logProgress(100_000),
+            )
+        return collector.get()
+    }
+
+    private fun findBestCheatBetween(
+        path: List<Point>,
+        from: Int,
+        to: Int,
+        maxCheat: Int,
+    ): Shortcut? {
+        val startPoint = path[from]
+        val endPoint = path[to]
+        val open = mutableSetOf(startPoint)
+        val cameFrom = mutableMapOf<Point, Point>()
+        val gScore = GScores(startPoint to 0.0)
+
+        val fScore = FScores(startPoint to 0.0)
+        while (open.isNotEmpty()) {
+            val current = open.minByOrNull { fScore[it] }!!
+            if (current == endPoint) {
+                val newPath = reconstructPath(cameFrom, current).reversed()
+                return if (newPath.isValidShortcut(maxCheat)) {
+                    Shortcut(
+                        start = from,
+                        end = to,
+                        length = newPath.size,
+                        win = to - from - newPath.size,
+                    )
+                } else {
+                    null
+                }
+            }
+
+            open.remove(current)
+            current.neighbours
+                .map { it.value }
+//                .filter { it.isValidForShortcut(cameFrom, maxCheat) }
+                .forEach { neighbour ->
+                    val tentativeGScore = gScore[current] + 1.0
+                    if (tentativeGScore < gScore[neighbour]) {
+                        cameFrom[neighbour] = current
+                        gScore[neighbour] = tentativeGScore
+                        fScore.add(neighbour, tentativeGScore)
+                        if (neighbour !in open) {
+                            open.add(neighbour)
+                        }
+                    }
+                }
+        }
+        return null
+    }
+
+    private fun Point.isValidForShortcut(
+        cameFrom: Map<Point, Point>,
+        maxCheat: Int,
+    ): Boolean = reconstructPath(cameFrom, this).isValidShortcut(maxCheat)
+
+    private fun List<Point>.isValidShortcut(maxCheat: Int): Boolean {
+        val walls =
+            mapIndexed { index, point -> index to map.getNullable(point) }
+                .filter { it.second == Cell.Wall }
+        return if (walls.isEmpty()) {
+            true
+        } else {
+            val firstWallAt = walls.first().first
+            val lastWallAt = walls.last().first
+            lastWallAt - firstWallAt < maxCheat
+        }
     }
 
     private fun findCheatsFrom(
@@ -146,31 +200,10 @@ class Game(
         return go(listOf(listOf(start)), mutableMapOf())
     }
 
-    private fun warmupCache2(
-        cheatsCache: CheatsCache,
-        path: List<Point>,
-        maxLength: Int,
-    ) {
-        (1..<path.size).forEach { window ->
-            (0..<path.size - window).forEach { from ->
-                val startPoint = path[from]
-                val to = from + window
-                val endPoint = path[to]
-                if (startPoint.distanceTo(endPoint) < window && endPoint.distanceTo(startPoint) <= maxLength + 1) {
-                    val cheats = findCheatsBetween(startPoint, endPoint, path)
-                    if (cheats.isNotEmpty()) {
-                        cheatsCache.addCheats(from, to, cheats.minBy { it.size } - startPoint)
-                    }
-                }
-            }
-        }
-    }
-
     private fun findCheatsBetween(
         source: Point,
         destination: Point,
-        path: List<Point>,
-    ): Set<List<Point>> {
+    ): List<Point>? {
         val open = mutableSetOf(source)
         val cameFrom = mutableMapOf<Point, Point>()
         val gScore = GScores(source to 0.0)
@@ -179,13 +212,12 @@ class Game(
         while (open.isNotEmpty()) {
             val current = open.minByOrNull { fScore[it] }!!
             if (current == destination) {
-                return setOf(reconstructPath(cameFrom, current).reversed() + target)
+                return reconstructPath(cameFrom, current).reversed() + target
             }
 
             open.remove(current)
             current.neighbours
                 .map { it.value }
-                .filter { it == destination || it !in path }
                 .forEach { neighbour ->
                     val tentativeGScore = gScore[current] + 1.0
                     if (tentativeGScore < gScore[neighbour]) {
@@ -198,85 +230,10 @@ class Game(
                     }
                 }
         }
-        return emptySet()
+        return null
     }
 
     private fun Point.isValid(): Boolean = x in 1..(map.width - 2) && y in 1..(map.height - 2)
-
-    private fun findBetterPaths(
-        path: List<Point>,
-        maxCheat: Int,
-        cheatsCache: CheatsCache,
-    ): List<ShortCut> {
-        val pathLength = path.size
-
-        tailrec fun go(
-            currentPosition: Int,
-            openCheats: List<ShortCut>,
-            acc: List<ShortCut>,
-        ): List<ShortCut> =
-            if (currentPosition >= pathLength) {
-                acc
-            } else {
-                if (openCheats.isEmpty()) {
-                    val next = currentPosition + 1
-                    val nextCheats =
-                        cheatsCache
-                            .getCheatsFor(next)
-                            .flatMap { (to, paths) ->
-                                paths
-                                    .map {
-                                        ShortCut(
-                                            start = next,
-                                            end = to,
-                                            length = pathLength,
-                                            win = to - next - pathLength,
-                                        )
-                                    }.filter { it.length <= maxCheat && it.win > 0 }
-                            }
-                    go(next, nextCheats, acc + nextCheats)
-                } else {
-                    val current = openCheats.first()
-                    val nextStart = current.end
-                    val nextCheats =
-                        cheatsCache
-                            .getCheatsFor(nextStart)
-                            .flatMap { (to, paths) ->
-                                paths
-                                    .map { it.size + current.length + 1 }
-                                    .filter { it <= maxCheat }
-                                    .map { totalLength ->
-                                        ShortCut(
-                                            start = current.start,
-                                            end = to,
-                                            length = totalLength,
-                                            win = to - current.start - totalLength,
-                                        )
-                                    }
-                            }
-                    go(currentPosition, openCheats.drop(1) + nextCheats, acc + nextCheats)
-                }
-            }
-
-        return go(-1, emptyList(), emptyList())
-    }
-
-    data class ShortCut(
-        val start: Int,
-        val end: Int,
-        val win: Int,
-        val length: Int,
-    )
-
-    private fun dumpPath(path: List<Point>): String =
-        map.dumpWithIndex { point, cell ->
-            when (point) {
-                start -> "S"
-                target -> "E"
-                in path -> "O"
-                else -> cell.toString()
-            }
-        }
 
     inner class TrackFinder {
         fun solve(): List<Point> {
@@ -360,27 +317,23 @@ class Game(
     }
 }
 
-class CheatsCache {
-    private val cheatsCache = ConcurrentHashMap<Int, MutableMap<Int, Set<List<Point>>>>()
+data class Shortcut(
+    val start: Int,
+    val end: Int,
+    val win: Int,
+    val length: Int,
+)
 
-    operator fun get(pair: Int): Map<Int, Set<List<Point>>>? = cheatsCache[pair]
+class ShortcutCollector(
+    private val minWin: Int,
+) : SequenceCollector<Shortcut?> {
+    private val counter: AtomicLong = AtomicLong(0)
 
-    fun getCheatsFor(from: Int): Map<Int, Set<List<Point>>> = cheatsCache[from] ?: emptyMap()
-
-    fun addCheats(
-        from: Int,
-        to: Int,
-        cheat: List<Point>,
-    ) {
-        cheatsCache.computeIfAbsent(from) { mutableMapOf() }[to] = setOf(cheat)
+    override fun emit(value: Shortcut?) {
+        if (value != null && value.win >= minWin) counter.incrementAndGet()
     }
 
-    operator fun set(
-        pair: Int,
-        value: Map<Int, Set<List<Point>>>,
-    ) {
-        cheatsCache[pair] = value.toMutableMap()
-    }
+    fun get(): Long = counter.get()
 }
 
 enum class Cell(

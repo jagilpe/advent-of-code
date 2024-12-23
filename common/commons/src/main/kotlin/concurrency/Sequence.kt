@@ -13,10 +13,10 @@ import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.LongAccumulator
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
-fun <A, B, C> Sequence<A>.transformAndCollect(
+fun <A, B> Sequence<A>.transformAndCollect(
     concurrency: Int = DEFAULT_CONCURRENCY,
     transform: (A) -> B,
-    collector: SequenceCollector<B, C>,
+    collector: SequenceCollector<B>,
 ) = runBlocking {
     asFlow()
         .flatMapMerge(concurrency) { flow { emit(transform(it)) } }
@@ -24,7 +24,7 @@ fun <A, B, C> Sequence<A>.transformAndCollect(
         .collect(collector.asFlowCollector)
 }
 
-fun interface SequenceCollector<A, B> {
+fun interface SequenceCollector<A> {
     fun emit(value: A)
 }
 
@@ -44,39 +44,33 @@ class ProgressPrinter(
     }
 }
 
-private val <A> SequenceCollector<A, *>.asFlowCollector
+private val <A> SequenceCollector<A>.asFlowCollector
     get() = FlowCollector<A> { value -> emit(value) }
 
-class LongSumSequenceCollector private constructor(
-    private val progressPrinter: ProgressPrinter = ProgressPrinter(),
-) : SequenceCollector<Long, Long> {
+fun <A> SequenceCollector<A>.logProgress(notifyEach: Int = 100): SequenceCollector<A> = ProgressPrinterSequenceCollector(this, notifyEach)
+
+private class ProgressPrinterSequenceCollector<A>(
+    private val delegate: SequenceCollector<A>,
+    notifyEach: Int,
+) : SequenceCollector<A> {
+    private val progressPrinter: ProgressPrinter = ProgressPrinter(notifyEach)
+
+    override fun emit(value: A) {
+        delegate.emit(value)
+        progressPrinter.emit()
+    }
+}
+
+class LongSumSequenceCollector : SequenceCollector<Long> {
     private val accumulator = LongAccumulator(Long::plus, 0)
 
     override fun emit(value: Long) {
         accumulator.accumulate(value)
-        progressPrinter.emit()
     }
 
     fun get(): Long = accumulator.get()
 
     companion object {
-        fun instance(notifyEach: Int = 100): LongSumSequenceCollector = LongSumSequenceCollector(ProgressPrinter(notifyEach))
-    }
-}
-
-class CountSequenceCollector private constructor(
-    private val progressPrinter: ProgressPrinter = ProgressPrinter(),
-) : SequenceCollector<Boolean, Long> {
-    private val accumulator = LongAccumulator(Long::plus, 0)
-
-    override fun emit(value: Boolean) {
-        if (value) accumulator.accumulate(1L)
-        progressPrinter.emit()
-    }
-
-    fun get(): Long = accumulator.get()
-
-    companion object {
-        fun instance(notifyEach: Int = 100): CountSequenceCollector = CountSequenceCollector(ProgressPrinter(notifyEach))
+        fun instance(): LongSumSequenceCollector = LongSumSequenceCollector()
     }
 }

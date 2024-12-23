@@ -16,9 +16,6 @@ fun firstTask(input: Sequence<String>): String {
     return collector.get().toString()
 }
 
-/**
- * 1747 too high
- */
 fun secondTask(input: Sequence<String>): String {
     val collector = PriceSequenceCollector()
 
@@ -85,7 +82,7 @@ data class PriceSeqItem(
     val priceSeq: PriceSeq,
 )
 
-class PriceSequenceCollector : SequenceCollector<PriceSeqItem, Map<PriceSeq, Map<Int, Int>>> {
+class PriceSequenceCollector : SequenceCollector<PriceSeqItem> {
     private val priceSeqResult = ConcurrentHashMap<PriceSeq, MutableMap<Int, Int>>()
 
     override fun emit(value: PriceSeqItem) {
