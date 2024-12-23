@@ -91,8 +91,9 @@ class Game(
         (1..<path.size)
             .asSequence()
             .flatMap { window -> (0..<path.size - window).asSequence().map { start -> start to (start + window) } }
+            .filter { path[it.first].distanceTo(path[it.second]) <= maxCheat }
             .transformAndCollect(
-                transform = { findBestCheatBetween(path, it.first, it.second, maxCheat) },
+                transform = { findBestCheatBetween(path, it.first, it.second) },
                 collector = collector.logProgress(100_000),
             )
         return collector.get()
@@ -102,7 +103,6 @@ class Game(
         path: List<Point>,
         from: Int,
         to: Int,
-        maxCheat: Int,
     ): Shortcut? {
         val startPoint = path[from]
         val endPoint = path[to]
@@ -115,22 +115,17 @@ class Game(
             val current = open.minByOrNull { fScore[it] }!!
             if (current == endPoint) {
                 val newPath = reconstructPath(cameFrom, current).reversed()
-                return if (newPath.isValidShortcut(maxCheat)) {
-                    Shortcut(
-                        start = from,
-                        end = to,
-                        length = newPath.size,
-                        win = to - from - newPath.size,
-                    )
-                } else {
-                    null
-                }
+                return Shortcut(
+                    start = from,
+                    end = to,
+                    length = newPath.size,
+                    win = to - from - newPath.size,
+                )
             }
 
             open.remove(current)
             current.neighbours
                 .map { it.value }
-//                .filter { it.isValidForShortcut(cameFrom, maxCheat) }
                 .forEach { neighbour ->
                     val tentativeGScore = gScore[current] + 1.0
                     if (tentativeGScore < gScore[neighbour]) {
@@ -144,24 +139,6 @@ class Game(
                 }
         }
         return null
-    }
-
-    private fun Point.isValidForShortcut(
-        cameFrom: Map<Point, Point>,
-        maxCheat: Int,
-    ): Boolean = reconstructPath(cameFrom, this).isValidShortcut(maxCheat)
-
-    private fun List<Point>.isValidShortcut(maxCheat: Int): Boolean {
-        val walls =
-            mapIndexed { index, point -> index to map.getNullable(point) }
-                .filter { it.second == Cell.Wall }
-        return if (walls.isEmpty()) {
-            true
-        } else {
-            val firstWallAt = walls.first().first
-            val lastWallAt = walls.last().first
-            lastWallAt - firstWallAt < maxCheat
-        }
     }
 
     private fun findCheatsFrom(
