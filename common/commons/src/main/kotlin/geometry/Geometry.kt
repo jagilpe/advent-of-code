@@ -37,7 +37,10 @@ class Point private constructor(
 
     fun euclideanDistanceTo(other: Point): Double = sqrt((other.x - x).toDouble().pow(2.0) + (other.y - y).toDouble().pow(2.0))
 
-    fun pathsTo(destination: Point): List<List<Point>> {
+    fun pathsTo(
+        destination: Point,
+        isValid: Point.() -> Boolean = { true },
+    ): List<List<Point>> {
         tailrec fun go(
             open: List<List<Point>>,
             acc: List<List<Point>>,
@@ -51,9 +54,9 @@ class Point private constructor(
                     currentPoint
                         .neighbours
                         .map { it.value }
-                        .filter { it.distanceTo(destination) < currentPoint.distanceTo(destination) }
+                        .filter { it.isValid() && it.distanceTo(destination) < currentPoint.distanceTo(destination) }
                 if (destination in nextSteps) {
-                    go(open.drop(1), acc.append(currentPath - this))
+                    go(open.drop(1), acc.append(currentPath - this + destination))
                 } else {
                     val newOpen = open.drop(1) + nextSteps.map { currentPath + it }
                     go(newOpen, acc)
