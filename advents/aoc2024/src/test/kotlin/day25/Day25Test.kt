@@ -6,10 +6,48 @@ import com.gilpereda.aoc2024.Executable
 class Day25Test : BaseTest() {
     override val example: String =
         """
-        
+        #####
+        .####
+        .####
+        .####
+        .#.#.
+        .#...
+        .....
+
+        #####
+        ##.##
+        .#.##
+        ...##
+        ...#.
+        ...#.
+        .....
+
+        .....
+        #....
+        #....
+        #...#
+        #.#.#
+        #.###
+        #####
+
+        .....
+        .....
+        #.#..
+        ###..
+        ###.#
+        ###.#
+        #####
+
+        .....
+        .....
+        .....
+        #....
+        #.#..
+        #.#.#
+        #####
         """.trimIndent()
 
-    override val resultExample1: String = ""
+    override val resultExample1: String = "3"
 
     override val resultReal1: String = ""
 
